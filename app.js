@@ -4,6 +4,7 @@
  */
 
 // --- VERCEL ANALYTICS ---
+// --- VERCEL WEB ANALYTICS ---
 import { inject } from '@vercel/analytics';
 inject();
 
