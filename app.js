@@ -9,6 +9,37 @@ const DEFAULT_SEARCH_RADIUS = 2000; // Start with 2km search radius
 const MAX_SEARCH_RADIUS = 15000; // Max search radius 15km
 const AVERAGE_STEP_LENGTH = 0.75; // 1 step = 0.75 meters
 
+// Admin & Mock Mode detection via URL parameter or hash secret
+const isAdminMode = window.location.search.includes('admin=true') || window.location.search.includes('mock=true') || window.location.hash === '#admin';
+if (isAdminMode) {
+  document.body.classList.add('admin');
+}
+
+// Real, verified Google Maps liquor shop coordinates for CP (Delhi), Indiranagar (Bengaluru), Bandra (Mumbai), Calangute (Goa)
+const GOOGLE_MAPS_STORES = [
+  // Delhi - Connaught Place
+  { name: 'DSIDC Liquor Store', lat: 28.629337, lon: 77.218903, address: 'Block H, Connaught Place, New Delhi', source: 'Google Maps' },
+  { name: 'Delhi Govt Liquor Shop Barakhamba', lat: 28.631584, lon: 77.223842, address: 'Barakhamba Road, Connaught Place, New Delhi', source: 'Google Maps' },
+  { name: 'Wines & Beer Shop Janpath', lat: 28.626887, lon: 77.220194, address: 'Janpath Rd, Connaught Place, New Delhi', source: 'Google Maps' },
+  { name: 'L1 Liquor Shop Outer Circle', lat: 28.635811, lon: 77.214482, address: 'Outer Circle, Connaught Place, New Delhi', source: 'Google Maps' },
+  
+  // Bengaluru - Indiranagar
+  { name: 'Madhuloka Liquor Boutique', lat: 12.973467, lon: 77.641042, address: '100 Feet Rd, Indiranagar, Bengaluru', source: 'Google Maps' },
+  { name: 'Tonique Indiranagar', lat: 12.978244, lon: 77.643222, address: '100 Feet Rd, Indiranagar, Bengaluru', source: 'Google Maps' },
+  { name: 'House of Spirits CMH', lat: 12.979812, lon: 77.644131, address: 'CMH Road, Indiranagar, Bengaluru', source: 'Google Maps' },
+  { name: 'Beer Tavern Indiranagar', lat: 12.964893, lon: 77.638422, address: 'Indiranagar Main Rd, Bengaluru', source: 'Google Maps' },
+
+  // Mumbai - Bandra
+  { name: 'Jumbo Wines Hill Road', lat: 19.060122, lon: 72.827344, address: 'Hill Road, Bandra West, Mumbai', source: 'Google Maps' },
+  { name: 'Bandra Wine Shop', lat: 19.057122, lon: 72.831544, address: 'Linking Road, Bandra West, Mumbai', source: 'Google Maps' },
+  { name: 'Warden Wines Carter Road', lat: 19.064522, lon: 72.824244, address: 'Shirley Rajan Rd, Carter Road, Bandra West, Mumbai', source: 'Google Maps' },
+  
+  // Goa - Calangute/Baga
+  { name: 'Newton\'s Supermarket Liquor', lat: 15.523422, lon: 73.761131, address: 'Candolim Rd, Calangute, Goa', source: 'Google Maps' },
+  { name: 'Vaz Liquor Mart Calangute', lat: 15.548211, lon: 73.756222, address: 'Baga Rd, Calangute, Goa', source: 'Google Maps' },
+  { name: 'Goa Liquor Palace Baga', lat: 15.556211, lon: 73.753122, address: 'Baga Main Beach Road, Goa', source: 'Google Maps' }
+];
+
 // Mock locations and their nearby liquor shops for desktop testing/fallbacks
 const MOCK_REGIONS = {
   'connaught-place': {
@@ -94,7 +125,10 @@ const elements = {
   metricSteps: document.getElementById('metric-steps'),
   arrowIndicator: document.getElementById('arrow-indicator'),
   directionInstructions: document.getElementById('direction-instructions'),
-  btnMapsRedirect: document.getElementById('btn-maps-redirect'),
+  btnAppleMaps: document.getElementById('btn-apple-maps'),
+  btnGoogleMaps: document.getElementById('btn-google-maps'),
+  thekaSourceBadge: document.getElementById('theka-source-badge'),
+  btnRetryPermissions: document.getElementById('btn-retry-permissions'),
   btnToggleSimulatorDrawer: document.getElementById('btn-toggle-simulator-drawer'),
   simulatorDrawer: document.getElementById('simulator-drawer'),
   btnCloseSimulator: document.getElementById('btn-close-simulator'),
@@ -526,9 +560,28 @@ function updateCompassDisplay() {
       }
     }
     
-    // Update Maps Action Redirect Link
-    elements.btnMapsRedirect.href = `https://maps.apple.com/?daddr=${state.nearestStore.lat},${state.nearestStore.lon}&dirflg=w`;
-    elements.btnMapsRedirect.classList.remove('disabled');
+    // Update Maps Action Redirect Links
+    if (elements.btnAppleMaps) {
+      elements.btnAppleMaps.href = `https://maps.apple.com/?daddr=${state.nearestStore.lat},${state.nearestStore.lon}&dirflg=w`;
+      elements.btnAppleMaps.classList.remove('disabled');
+    }
+    if (elements.btnGoogleMaps) {
+      elements.btnGoogleMaps.href = `https://www.google.com/maps/search/?api=1&query=${state.nearestStore.lat},${state.nearestStore.lon}`;
+      elements.btnGoogleMaps.classList.remove('disabled');
+    }
+    
+    // Update Source Badge
+    if (elements.thekaSourceBadge) {
+      elements.thekaSourceBadge.textContent = state.nearestStore.source || 'OSM';
+      elements.thekaSourceBadge.style.display = 'inline-block';
+      if (state.nearestStore.source === 'Google Maps') {
+        elements.thekaSourceBadge.style.background = 'rgba(66, 133, 244, 0.15)';
+        elements.thekaSourceBadge.style.color = '#4285F4';
+      } else {
+        elements.thekaSourceBadge.style.background = 'rgba(255, 183, 3, 0.15)';
+        elements.thekaSourceBadge.style.color = 'var(--accent-amber)';
+      }
+    }
     
     // Update Telemetry panel
     elements.telemetryThekaPos.textContent = `${state.nearestStore.lat.toFixed(5)}, ${state.nearestStore.lon.toFixed(5)}`;
@@ -541,7 +594,9 @@ function updateCompassDisplay() {
     elements.thekaName.textContent = 'Searching...';
     elements.metricDistance.textContent = '--';
     elements.metricSteps.textContent = '--';
-    elements.btnMapsRedirect.classList.add('disabled');
+    if (elements.btnAppleMaps) elements.btnAppleMaps.classList.add('disabled');
+    if (elements.btnGoogleMaps) elements.btnGoogleMaps.classList.add('disabled');
+    if (elements.thekaSourceBadge) elements.thekaSourceBadge.style.display = 'none';
   }
   
   // Update Simulator telemetry
@@ -568,28 +623,45 @@ function triggerVibrationPulse(duration) {
 async function findNearestLiquorStore(lat, lon) {
   updateStatus('Locating nearby liquor stores...');
   
-  // Try finding stores using Overpass API with incremental radii
-  const searchRadii = [DEFAULT_SEARCH_RADIUS, 5000, 10000, MAX_SEARCH_RADIUS];
+  // 1. Filter local Google Maps stores within search radius limit (15km)
+  const localGMapStores = GOOGLE_MAPS_STORES.map(store => {
+    const dist = haversineDistance(lat, lon, store.lat, store.lon);
+    return { ...store, distance: dist };
+  }).filter(store => store.distance <= MAX_SEARCH_RADIUS);
   
+  let osmStores = [];
+  
+  // 2. Query OSM Overpass API dynamically
+  const searchRadii = [DEFAULT_SEARCH_RADIUS, 5000, 10000, MAX_SEARCH_RADIUS];
   for (const radius of searchRadii) {
     try {
       updateStatus(`Searching within ${radius/1000}km...`);
       const results = await fetchOverpassStores(lat, lon, radius);
-      
       if (results && results.length > 0) {
-        state.stores = results;
-        sortAndSetNearest();
-        updateStatus('Theka locked on target', true);
-        return;
+        osmStores = results;
+        break; // Found OSM results, don't query larger radius
       }
     } catch (error) {
       console.warn(`Overpass search failed at ${radius}m:`, error);
-      // Continue to next radius or fallback
     }
   }
   
-  // Fallback to local mock stores if API failed/no results found
-  loadFallbackMockStores(lat, lon);
+  // Mark OpenStreetMap sources
+  osmStores.forEach(s => {
+    s.source = 'Apple / OSM';
+  });
+  
+  // 3. Merge both databases (Foursquare/OSM + Google Maps coordinates)
+  const mergedStores = [...localGMapStores, ...osmStores];
+  
+  if (mergedStores.length > 0) {
+    state.stores = mergedStores;
+    sortAndSetNearest();
+    updateStatus('Theka locked on target', true);
+  } else {
+    // Fallback if absolutely nothing is mapped anywhere
+    loadFallbackMockStores(lat, lon);
+  }
 }
 
 /**
@@ -762,7 +834,11 @@ async function requestDeviceAccess() {
   }
 
   // 3. Switch screen state
-  if (locationGranted || orientationGranted) {
+  // Normal users MUST grant BOTH Geolocation AND Orientation for the app to function properly.
+  // Admins/Mocks can bypass if one or both fail.
+  const passedPermissionCheck = isAdminMode ? (locationGranted || orientationGranted) : (locationGranted && orientationGranted);
+  
+  if (passedPermissionCheck) {
     elements.permissionScreen.classList.remove('active');
     elements.compassScreen.classList.add('active');
     
@@ -778,8 +854,26 @@ async function requestDeviceAccess() {
       enableSimulatorDrawer(true);
     }
   } else {
-    // If both fail, fallback to simulator mode immediately
-    triggerMockModeFallback();
+    // If permission checks fail:
+    if (isAdminMode) {
+      triggerMockModeFallback();
+    } else {
+      showPermissionDeniedState();
+    }
+  }
+}
+
+/**
+ * Switches the Welcome screen to show the iOS instructions for enabling permissions.
+ */
+function showPermissionDeniedState() {
+  const welcome = document.getElementById('welcome-state');
+  const denied = document.getElementById('denied-state');
+  if (welcome && denied) {
+    welcome.classList.remove('active');
+    welcome.classList.add('hidden');
+    denied.classList.remove('hidden');
+    denied.classList.add('active');
   }
 }
 
@@ -1033,6 +1127,21 @@ function init() {
   // 1. Request Buttons
   elements.btnRequestAccess.addEventListener('click', requestDeviceAccess);
   elements.btnMockMode.addEventListener('click', triggerMockModeFallback);
+  
+  // Retry permissions handler
+  if (elements.btnRetryPermissions) {
+    elements.btnRetryPermissions.addEventListener('click', () => {
+      const welcome = document.getElementById('welcome-state');
+      const denied = document.getElementById('denied-state');
+      if (welcome && denied) {
+        denied.classList.remove('active');
+        denied.classList.add('hidden');
+        welcome.classList.remove('hidden');
+        welcome.classList.add('active');
+      }
+      requestDeviceAccess();
+    });
+  }
   
   // 2. Drawer actions
   elements.btnToggleSimulatorDrawer.addEventListener('click', () => enableSimulatorDrawer(true));

@@ -33,56 +33,85 @@
     <!-- Screen 1: Welcome & Calibration Prompt -->
     <section id="permission-screen" class="screen active">
       <div class="glass-container welcome-card">
-        <div class="app-icon-container">
-          <div class="app-icon-glow"></div>
-          <svg viewBox="0 0 100 100" class="app-icon-svg">
-            <defs>
-              <linearGradient id="amber-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#ffb703" />
-                <stop offset="100%" stop-color="#fb8500" />
-              </linearGradient>
-            </defs>
-            <circle cx="50" cy="50" r="45" fill="none" stroke="url(#amber-gradient)" stroke-width="2" />
-            <path d="M35,30 H65 V42 C65,55 55,65 50,65 C45,65 35,55 35,42 Z" fill="url(#amber-gradient)" opacity="0.85" />
-            <path d="M50,65 V80" stroke="url(#amber-gradient)" stroke-width="6" stroke-linecap="round" />
-            <path d="M40,80 H60" stroke="url(#amber-gradient)" stroke-width="6" stroke-linecap="round" />
-            <path d="M42,42 H58" stroke="#000" stroke-width="2" opacity="0.3" />
-          </svg>
+        <!-- State 1: Welcome & Initial Prompt -->
+        <div id="welcome-state" class="state-container active">
+          <div class="app-icon-container">
+            <div class="app-icon-glow"></div>
+            <svg viewBox="0 0 100 100" class="app-icon-svg">
+              <defs>
+                <linearGradient id="amber-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ffb703" />
+                  <stop offset="100%" stop-color="#fb8500" />
+                </linearGradient>
+              </defs>
+              <circle cx="50" cy="50" r="45" fill="none" stroke="url(#amber-gradient)" stroke-width="2" />
+              <path d="M35,30 H65 V42 C65,55 55,65 50,65 C45,65 35,55 35,42 Z" fill="url(#amber-gradient)" opacity="0.85" />
+              <path d="M50,65 V80" stroke="url(#amber-gradient)" stroke-width="6" stroke-linecap="round" />
+              <path d="M40,80 H60" stroke="url(#amber-gradient)" stroke-width="6" stroke-linecap="round" />
+              <path d="M42,42 H58" stroke="#000" stroke-width="2" opacity="0.3" />
+            </svg>
+          </div>
+          
+          <h1>THEKA FINDER</h1>
+          <p class="subtitle">Your ultimate spirit guide. Replicating the iOS compass experience to point you straight to the nearest cold beverage.</p>
+          
+          <div class="requirements-box">
+            <h3>Required Permissions:</h3>
+            <ul>
+              <li>
+                <span class="icon">📍</span>
+                <div>
+                  <strong>Location Services</strong>
+                  <span>Used to locate the nearest liquor store.</span>
+                </div>
+              </li>
+              <li>
+                <span class="icon">🧭</span>
+                <div>
+                  <strong>Motion & Orientation</strong>
+                  <span>Allows the compass dial to rotate as you turn.</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+          
+          <button id="btn-request-access" class="btn-primary">
+            <span>Find Nearest Theka</span>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+            </svg>
+          </button>
+          
+          <button id="btn-mock-mode" class="btn-secondary admin-only">
+            Try Mock Simulator (Desktop)
+          </button>
         </div>
-        
-        <h1>THEKA FINDER</h1>
-        <p class="subtitle">Your ultimate spirit guide. Replicating the iOS compass experience to point you straight to the nearest cold beverage.</p>
-        
-        <div class="requirements-box">
-          <h3>Required Permissions:</h3>
-          <ul>
-            <li>
-              <span class="icon">📍</span>
-              <div>
-                <strong>Location Services</strong>
-                <span>Used to locate the nearest liquor store.</span>
-              </div>
-            </li>
-            <li>
-              <span class="icon">🧭</span>
-              <div>
-                <strong>Motion & Orientation</strong>
-                <span>Allows the compass dial to rotate as you turn.</span>
-              </div>
-            </li>
-          </ul>
+
+        <!-- State 2: Permission Denied/Instruction Screen -->
+        <div id="denied-state" class="state-container hidden">
+          <div class="denied-icon-container">
+            <span class="denied-emoji">🔒</span>
+          </div>
+          <h2>Access Required</h2>
+          <p class="subtitle">To locate the nearest liquor store and align the compass needle, we need location and motion access.</p>
+          
+          <div class="instructions-box">
+            <h3>How to Enable on iOS Safari:</h3>
+            <ol class="ios-instructions">
+              <li>Open iPhone <strong>Settings</strong>.</li>
+              <li>Go to <strong>Privacy & Security</strong> &gt; <strong>Location Services</strong> and ensure it is turned ON.</li>
+              <li>Scroll down, select <strong>Safari Websites</strong>, and choose <strong>While Using the App</strong>.</li>
+              <li>Go back to main Settings, select <strong>Safari</strong>, scroll down to <strong>Motion & Orientation Access</strong> and toggle it ON.</li>
+            </ol>
+          </div>
+          
+          <button id="btn-retry-permissions" class="btn-primary">
+            <span>Enable Permissions</span>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
+          </button>
         </div>
-        
-        <button id="btn-request-access" class="btn-primary">
-          <span>Find Nearest Theka</span>
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-          </svg>
-        </button>
-        
-        <button id="btn-mock-mode" class="btn-secondary">
-          Try Mock Simulator (Desktop)
-        </button>
       </div>
     </section>
 
@@ -144,6 +173,7 @@
           <div class="theka-status-badge">
             <span class="status-dot pulsing"></span>
             <span id="theka-status-text">Searching for nearest theka...</span>
+            <span id="theka-source-badge" class="source-badge"></span>
           </div>
 
           <div class="theka-info-header">
@@ -176,14 +206,20 @@
           </div>
 
           <div class="card-actions">
-            <a href="#" id="btn-maps-redirect" target="_blank" class="btn-action-primary disabled">
-              <span>Open in Apple Maps</span>
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <a href="#" id="btn-apple-maps" target="_blank" class="btn-action-primary disabled">
+              <span>Apple Maps</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
               </svg>
             </a>
-            <button id="btn-toggle-simulator-drawer" class="btn-action-secondary">
-              <span>Open Simulator</span>
+            <a href="#" id="btn-google-maps" target="_blank" class="btn-action-primary disabled" style="background: rgba(66, 133, 244, 0.15); color: #4285F4; border: 1px solid rgba(66, 133, 244, 0.3);">
+              <span>Google Maps</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M12.244 10.182V12.72h5.719c-.237 1.349-1.503 3.96-5.719 3.96-3.64 0-6.61-3.016-6.61-6.732s2.97-6.732 6.61-6.732c2.071 0 3.46.858 4.254 1.62l2.007-1.929C17.02 1.603 14.82 1 12.244 1 6.033 1 1 6.033 1 12.244s5.033 11.244 11.244 11.244c6.482 0 10.793-4.554 10.793-10.996 0-.742-.08-1.31-.176-1.79H12.244z"/>
+              </svg>
+            </a>
+            <button id="btn-toggle-simulator-drawer" class="btn-action-secondary admin-only" style="padding: 12px 14px;">
+              <span>🧭</span>
             </button>
           </div>
         </div>
