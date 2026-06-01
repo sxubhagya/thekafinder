@@ -241,12 +241,15 @@ h1 {
   padding-top: env(safe-area-inset-top, 20px);
   padding-bottom: env(safe-area-inset-bottom, 20px);
   justify-content: space-between;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .compass-header {
   padding: 24px 20px 0;
   text-align: center;
   z-index: 30;
+  flex-shrink: 0;
 }
 
 .heading-number-row {
@@ -286,10 +289,11 @@ h1 {
   position: relative;
   width: 320px;
   height: 320px;
-  margin: auto;
+  margin: 16px auto;
   display: flex;
   justify-content: center;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .compass-pointer-index {
@@ -424,6 +428,7 @@ h1 {
   padding: 0 16px 20px;
   z-index: 50;
   margin-top: auto;
+  flex-shrink: 0;
 }
 
 .bottom-card {
