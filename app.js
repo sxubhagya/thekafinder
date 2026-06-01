@@ -3,6 +3,7 @@
  * Replicates the iOS Compass UI/UX, pointing to the nearest liquor store.
  */
 
+// --- VERCEL ANALYTICS ---
 // --- VERCEL WEB ANALYTICS ---
 import { inject } from '@vercel/analytics';
 inject();
