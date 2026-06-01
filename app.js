@@ -618,16 +618,52 @@ function triggerVibrationPulse(duration) {
 // --- LOCATION FINDER & OSM API INTEGRATION ---
 
 /**
- * Queries OSM Overpass API to search for shops in widening radii.
+ * Dynamic fetch from our secure serverless backend proxy for Google Places.
+ */
+async function fetchGooglePlacesStores(lat, lon, radius) {
+  try {
+    const url = `/api/places?lat=${lat}&lon=${lon}&radius=${radius}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Google API Proxy responded with status ${response.status}`);
+    }
+    const data = await response.json();
+    return data.results || [];
+  } catch (error) {
+    console.error('Failed to fetch from Google Places API proxy:', error);
+    return [];
+  }
+}
+
+/**
+ * Queries OSM Overpass API and Google Places API to search for shops in widening radii.
  */
 async function findNearestLiquorStore(lat, lon) {
   updateStatus('Locating nearby liquor stores...');
   
-  // 1. Filter local Google Maps stores within search radius limit (15km)
-  const localGMapStores = GOOGLE_MAPS_STORES.map(store => {
+  // 1. Fetch from Google Places API via our secure serverless proxy
+  let googleStores = [];
+  try {
+    updateStatus('Searching Google Places...');
+    googleStores = await fetchGooglePlacesStores(lat, lon, MAX_SEARCH_RADIUS);
+  } catch (err) {
+    console.warn('Google Places fetch failed, relying on local static stores:', err);
+  }
+
+  // Calculate distances for the fetched Google Places stores
+  let googleStoresWithDistance = googleStores.map(store => {
     const dist = haversineDistance(lat, lon, store.lat, store.lon);
     return { ...store, distance: dist };
   }).filter(store => store.distance <= MAX_SEARCH_RADIUS);
+
+  // If Google Places returned nothing (e.g. key missing/failed/no results), fall back to local static stores
+  if (googleStoresWithDistance.length === 0) {
+    console.log('No Google Places API results. Using local static stores fallback.');
+    googleStoresWithDistance = GOOGLE_MAPS_STORES.map(store => {
+      const dist = haversineDistance(lat, lon, store.lat, store.lon);
+      return { ...store, distance: dist };
+    }).filter(store => store.distance <= MAX_SEARCH_RADIUS);
+  }
   
   let osmStores = [];
   
@@ -652,7 +688,7 @@ async function findNearestLiquorStore(lat, lon) {
   });
   
   // 3. Merge both databases (Foursquare/OSM + Google Maps coordinates)
-  const mergedStores = [...localGMapStores, ...osmStores];
+  const mergedStores = [...googleStoresWithDistance, ...osmStores];
   
   if (mergedStores.length > 0) {
     state.stores = mergedStores;
