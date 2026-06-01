@@ -847,7 +847,19 @@ async function requestDeviceAccess() {
   let locationGranted = false;
   let orientationGranted = false;
 
-  // 1. Request GPS Coordinates
+  // 1. Request Device Motion/Orientation FIRST (specifically iOS Safari protocol)
+  // Must be called immediately inside the user click callback to preserve the user-gesture context.
+  try {
+    const motionPermission = await requestDeviceOrientation();
+    if (motionPermission) {
+      orientationGranted = true;
+      state.hasGrantedOrientation = true;
+    }
+  } catch (error) {
+    console.error('Device orientation permission rejected:', error);
+  }
+
+  // 2. Request GPS Coordinates SECOND (more permissive, doesn't require immediate user-gesture thread)
   try {
     const geoPermission = await requestGeolocation();
     if (geoPermission) {
@@ -858,16 +870,6 @@ async function requestDeviceAccess() {
     console.error('Geolocation setup failed:', error);
   }
 
-  // 2. Request Device Motion/Orientation (specifically iOS Safari protocol)
-  try {
-    const motionPermission = await requestDeviceOrientation();
-    if (motionPermission) {
-      orientationGranted = true;
-      state.hasGrantedOrientation = true;
-    }
-  } catch (error) {
-    console.error('Device orientation permission rejected:', error);
-  }
 
   // 3. Switch screen state
   // Normal users MUST grant BOTH Geolocation AND Orientation for the app to function properly.
