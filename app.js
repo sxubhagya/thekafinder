@@ -3,6 +3,10 @@
  * Replicates the iOS Compass UI/UX, pointing to the nearest liquor store.
  */
 
+// --- VERCEL WEB ANALYTICS ---
+import { inject } from '@vercel/analytics';
+inject();
+
 // --- CONSTANTS & CONFIGURATION ---
 const EARTH_RADIUS = 6371000; // Meters
 const DEFAULT_SEARCH_RADIUS = 2000; // Start with 2km search radius
