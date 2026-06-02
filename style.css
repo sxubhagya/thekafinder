@@ -1879,3 +1879,75 @@ body.admin .btn-action-secondary.admin-only {
   opacity: 0.4;
   pointer-events: none;
 }
+
+/* --- CROWDSOURCED FEEDBACK WIDGET --- */
+.feedback-section {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 12px;
+  margin-top: 15px;
+  font-size: 12px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.feedback-metrics {
+  color: var(--accent-amber);
+  font-weight: 700;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-family-main);
+  line-height: 1.4;
+}
+
+.feedback-question-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.feedback-q-text {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.feedback-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-feedback-yes, .btn-feedback-no {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.btn-feedback-yes:hover {
+  background: rgba(52, 199, 89, 0.15);
+  border-color: rgba(52, 199, 89, 0.3);
+  color: #34c759;
+}
+
+.btn-feedback-no:hover {
+  background: rgba(255, 69, 58, 0.15);
+  border-color: rgba(255, 69, 58, 0.3);
+  color: #ff453a;
+}
+
+.btn-feedback-yes:active, .btn-feedback-no:active {
+  transform: scale(0.95);
+}
+

@@ -112,7 +112,8 @@ const state = {
   dryStateName: '',
   dryStateMessage: '',
   lastSearchCoords: null,
-  cachedStores: []
+  cachedStores: [],
+  loadedFeedbackStoreId: null
 };
 
 // --- DOM ELEMENTS ---
@@ -175,7 +176,11 @@ const elements = {
   thekaOpenText: document.getElementById('theka-open-text'),
   btnShareTheka: document.getElementById('btn-share-theka'),
   btnRefreshTheka: document.getElementById('btn-refresh-theka'),
-  btnEmergencySos: document.getElementById('btn-emergency-sos')
+  btnEmergencySos: document.getElementById('btn-emergency-sos'),
+  feedbackSection: document.getElementById('crowdsourced-feedback-section'),
+  feedbackMetricsText: document.getElementById('feedback-metrics-text'),
+  btnReportOpen: document.getElementById('btn-report-open'),
+  btnReportClosed: document.getElementById('btn-report-closed')
 };
 
 // --- CONFETTI & SOUND SYSTEMS ---
@@ -571,6 +576,140 @@ function triggerEmergencySOS() {
   window.open(whatsappUrl, '_blank');
 }
 
+/**
+ * Loads crowdsourced open/closed status for a locked-on store.
+ */
+async function loadStoreFeedback(storeId) {
+  if (!storeId) return;
+  
+  if (elements.feedbackSection) {
+    elements.feedbackSection.style.display = 'block';
+  }
+  
+  if (elements.feedbackMetricsText) {
+    elements.feedbackMetricsText.textContent = 'Loading user reports... ⏳';
+  }
+
+  try {
+    const res = await fetch(`/api/feedback?store_id=${encodeURIComponent(storeId)}`);
+    const data = await res.json();
+    
+    if (data.success && elements.feedbackMetricsText) {
+      const stats = data.stats12h;
+      const last = data.lastReport;
+      
+      let text = '';
+      if (stats && stats.totalCount > 0) {
+        const timeAgoText = last ? getTimeAgo(new Date(last.createdAt)) : '';
+        const pctText = `👍 ${stats.openPercentage}% users reported open in last 12 hrs (${stats.openCount} of ${stats.totalCount} reports)`;
+        const lastReportText = last ? `\n(Last reported ${last.status} ${timeAgoText})` : '';
+        text = `${pctText}${lastReportText}`;
+      } else {
+        text = 'No user updates in last 12 hours. Be the first to report! 🍻';
+      }
+      
+      elements.feedbackMetricsText.textContent = text;
+    }
+  } catch (err) {
+    console.warn('Error loading store feedback, using local storage fallback:', err);
+    // LocalStorage fallback for offline testing or missing backend
+    if (elements.feedbackMetricsText) {
+      const localData = getLocalStoreFeedback(storeId);
+      if (localData) {
+        elements.feedbackMetricsText.textContent = localData;
+      } else {
+        elements.feedbackMetricsText.textContent = 'Be the first to report store status! 🍻';
+      }
+    }
+  }
+}
+
+/**
+ * Helper to get a human-readable time-ago format.
+ */
+function getTimeAgo(date) {
+  const seconds = Math.floor((new Date() - date) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return date.toLocaleDateString();
+}
+
+/**
+ * Retrieves mock/local feedback data from localStorage.
+ */
+function getLocalStoreFeedback(storeId) {
+  try {
+    const local = localStorage.getItem(`feedback_${storeId}`);
+    if (local) {
+      const { status, time } = JSON.parse(local);
+      const timeAgoText = getTimeAgo(new Date(time));
+      return `Last reported ${status} ${timeAgoText} (locally saved) 📍`;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  return null;
+}
+
+/**
+ * Submits store status feedback to the database with a localStorage fallback.
+ */
+async function submitStoreFeedback(status) {
+  if (!state.nearestStore) return;
+  const storeId = state.nearestStore.id || `${state.nearestStore.lat.toFixed(5)}_${state.nearestStore.lon.toFixed(5)}`;
+  const storeName = state.nearestStore.name || 'Unknown Store';
+
+  // Set visual button loading state or disable
+  if (elements.btnReportOpen) elements.btnReportOpen.disabled = true;
+  if (elements.btnReportClosed) elements.btnReportClosed.disabled = true;
+
+  try {
+    // 1. Submit to API endpoint
+    const res = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        store_id: storeId,
+        store_name: storeName,
+        status: status
+      })
+    });
+    
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Thank you! Status reported as ${status}. 🍻`);
+    } else {
+      throw new Error(data.error);
+    }
+  } catch (err) {
+    console.warn('API submission failed, falling back to LocalStorage caching:', err);
+    showToast(`Saved locally! Status reported as ${status}. 📍`);
+  } finally {
+    // 2. Always persist in LocalStorage for client-side local cache fallback
+    try {
+      localStorage.setItem(`feedback_${storeId}`, JSON.stringify({
+        status,
+        time: new Date().toISOString()
+      }));
+    } catch (e) {
+      console.error(e);
+    }
+    
+    // Enable buttons
+    if (elements.btnReportOpen) elements.btnReportOpen.disabled = false;
+    if (elements.btnReportClosed) elements.btnReportClosed.disabled = false;
+    
+    // 3. Reload UI metrics
+    await loadStoreFeedback(storeId);
+  }
+}
+
+
 
 /**
  * Calculates Haversine distance between two sets of GPS coordinates in meters.
@@ -762,6 +901,8 @@ function updateCompassDisplay() {
     if (elements.btnGoogleMaps) elements.btnGoogleMaps.classList.add('disabled');
     if (elements.thekaSourceBadge) elements.thekaSourceBadge.style.display = 'none';
     if (elements.thekaOpenStatus) elements.thekaOpenStatus.style.display = 'none';
+    if (elements.feedbackSection) elements.feedbackSection.style.display = 'none';
+    state.loadedFeedbackStoreId = null;
     
     // Telemetry
     elements.telemetryThekaPos.textContent = 'PROHIBITED';
@@ -884,6 +1025,13 @@ function updateCompassDisplay() {
     elements.telemetryThekaPos.textContent = `${state.nearestStore.lat.toFixed(5)}, ${state.nearestStore.lon.toFixed(5)}`;
     elements.telemetryBearing.textContent = `${Math.round(bearing)}°`;
     elements.telemetryRelBearing.textContent = `${Math.round(relativeAngle)}°`;
+
+    // Only load feedback once per store to prevent network request spamming
+    const currentStoreId = state.nearestStore.id || `${state.nearestStore.lat.toFixed(5)}_${state.nearestStore.lon.toFixed(5)}`;
+    if (state.loadedFeedbackStoreId !== currentStoreId) {
+      state.loadedFeedbackStoreId = currentStoreId;
+      loadStoreFeedback(currentStoreId);
+    }
   } else {
     // Reset/loading state
     elements.liquorNeedle.style.transform = 'rotate(0deg)';
@@ -895,6 +1043,8 @@ function updateCompassDisplay() {
     if (elements.btnGoogleMaps) elements.btnGoogleMaps.classList.add('disabled');
     if (elements.thekaSourceBadge) elements.thekaSourceBadge.style.display = 'none';
     if (elements.thekaOpenStatus) elements.thekaOpenStatus.style.display = 'none';
+    if (elements.feedbackSection) elements.feedbackSection.style.display = 'none';
+    state.loadedFeedbackStoreId = null;
   }
   
   // Update Simulator telemetry
@@ -1666,6 +1816,12 @@ function init() {
   }
   if (elements.btnEmergencySos) {
     elements.btnEmergencySos.addEventListener('click', triggerEmergencySOS);
+  }
+  if (elements.btnReportOpen) {
+    elements.btnReportOpen.addEventListener('click', () => submitStoreFeedback('open'));
+  }
+  if (elements.btnReportClosed) {
+    elements.btnReportClosed.addEventListener('click', () => submitStoreFeedback('closed'));
   }
 
   // 6. Buy Me a Beer Modal Handlers
