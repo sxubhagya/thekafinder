@@ -174,7 +174,8 @@ const elements = {
   thekaOpenStatus: document.getElementById('theka-open-status'),
   thekaOpenText: document.getElementById('theka-open-text'),
   btnShareTheka: document.getElementById('btn-share-theka'),
-  btnRefreshTheka: document.getElementById('btn-refresh-theka')
+  btnRefreshTheka: document.getElementById('btn-refresh-theka'),
+  btnEmergencySos: document.getElementById('btn-emergency-sos')
 };
 
 // --- CONFETTI & SOUND SYSTEMS ---
@@ -542,6 +543,36 @@ function shareTheka() {
 }
 
 /**
+ * Triggers WhatsApp sharing with custom witty SOS messages and coordinates link.
+ */
+function triggerEmergencySOS() {
+  if (!state.userLocation.lat || !state.userLocation.lon) {
+    showToast('GPS coordinates not resolved yet! 🧭');
+    return;
+  }
+  
+  const mapLink = `https://www.google.com/maps/search/?api=1&query=${state.userLocation.lat},${state.userLocation.lon}`;
+  let message = '';
+  
+  if (state.isDryState) {
+    const dryName = state.dryStateName || 'Dry State';
+    message = `Help! I'm currently stranded in a dry state/zone (${dryName}) with a spinning compass needle and no beer. Save me or send a cooler to my location: ${mapLink} 🌵💧`;
+  } else if (state.isDryZone) {
+    message = `Desert alert! 🌵 No liquor stores found within 15km. Send backup or cold water to my current coordinates: ${mapLink} 💧`;
+  } else if (state.nearestStore) {
+    const dist = state.nearestStore.distance;
+    const distText = dist >= 1000 ? `${(dist / 1000).toFixed(1)}km` : `${Math.round(dist)}m`;
+    message = `Hey! I'm on a mission to grab a cold one at ${state.nearestStore.name} (~${distText} away). If I'm not back in 30 mins, send search parties to my last known location: ${mapLink} 🍻🚨`;
+  } else {
+    message = `Hey, I'm heading out to find some cold beers! Tracking my path here: ${mapLink} 🍻`;
+  }
+  
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+  window.open(whatsappUrl, '_blank');
+}
+
+
+/**
  * Calculates Haversine distance between two sets of GPS coordinates in meters.
  */
 function haversineDistance(lat1, lon1, lat2, lon2) {
@@ -707,6 +738,10 @@ function updateCompassDisplay() {
   
   // 3. Update location coordinates
   elements.locationText.textContent = formatCoordinates(state.userLocation.lat, state.userLocation.lon);
+  
+  if (elements.btnEmergencySos && state.userLocation.lat && state.userLocation.lon) {
+    elements.btnEmergencySos.classList.remove('disabled');
+  }
   
   // 4. Update the liquor needle and target metrics
   if (state.isDryState || state.isDryZone) {
@@ -1628,6 +1663,9 @@ function init() {
     elements.btnRefreshTheka.addEventListener('click', () => {
       findNearestLiquorStore(state.userLocation.lat, state.userLocation.lon, true);
     });
+  }
+  if (elements.btnEmergencySos) {
+    elements.btnEmergencySos.addEventListener('click', triggerEmergencySOS);
   }
 
   // 6. Buy Me a Beer Modal Handlers
