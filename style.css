@@ -6,6 +6,7 @@
   --accent-amber: #ffb703;
   --accent-orange: #fb8500;
   --accent-red: #ff3b30;
+  --accent-green: #34c759;
   --glass-bg: rgba(28, 28, 30, 0.7);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shadow: rgba(0, 0, 0, 0.5);
@@ -466,6 +467,7 @@ h1 {
   letter-spacing: 0.5px;
   color: var(--text-secondary);
   margin-bottom: 12px;
+  transition: all 0.3s ease;
 }
 
 .status-dot {
@@ -473,12 +475,45 @@ h1 {
   height: 6px;
   border-radius: 50%;
   background-color: var(--text-secondary);
+  transition: all 0.3s ease;
 }
 
 .status-dot.pulsing {
   background-color: var(--accent-amber);
   box-shadow: 0 0 8px var(--accent-amber);
   animation: pulseDot 1.5s infinite;
+}
+
+/* Open Status Specific Colors */
+.open-status-badge.open {
+  color: var(--accent-green);
+  border-color: rgba(52, 199, 89, 0.15);
+  background: rgba(52, 199, 89, 0.05);
+}
+.open-status-badge.open .status-dot {
+  background-color: var(--accent-green);
+  box-shadow: 0 0 8px var(--accent-green);
+}
+
+.open-status-badge.closing-soon {
+  color: var(--accent-amber);
+  border-color: rgba(255, 183, 3, 0.15);
+  background: rgba(255, 183, 3, 0.05);
+}
+.open-status-badge.closing-soon .status-dot {
+  background-color: var(--accent-amber);
+  box-shadow: 0 0 8px var(--accent-amber);
+  animation: pulseDot 1.5s infinite;
+}
+
+.open-status-badge.closed {
+  color: var(--accent-red);
+  border-color: rgba(255, 59, 48, 0.15);
+  background: rgba(255, 59, 48, 0.05);
+}
+.open-status-badge.closed .status-dot {
+  background-color: var(--accent-red);
+  box-shadow: 0 0 8px var(--accent-red);
 }
 
 .theka-info-header {
@@ -1498,6 +1533,147 @@ body.admin .btn-action-secondary.admin-only {
   padding: 14px;
   border-radius: 14px;
   font-size: 14px;
+}
+
+/* --- PAYMENT TABS & PANELS --- */
+.payment-tabs {
+  display: flex;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 20px;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.tab-btn.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tab-btn:hover:not(.active) {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.payment-panel {
+  display: none;
+  width: 100%;
+  flex-direction: column;
+}
+
+.payment-panel.active {
+  display: flex;
+}
+
+/* --- INTERNATIONAL DONATIONS (KO-FI BRANDING) --- */
+.intl-donate-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.intl-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  padding: 16px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Premium Ko-fi Theme Color hover styling (#ff5e5b) */
+.intl-card:hover {
+  background: rgba(255, 94, 91, 0.08);
+  border-color: rgba(255, 94, 91, 0.3);
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(255, 94, 91, 0.15);
+}
+
+.intl-card:active {
+  transform: translateY(-1px);
+}
+
+.intl-card.custom:hover {
+  background: rgba(255, 183, 3, 0.08);
+  border-color: rgba(255, 183, 3, 0.3);
+  box-shadow: 0 8px 20px rgba(255, 183, 3, 0.15);
+}
+
+.intl-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
+  pointer-events: none;
+}
+
+.intl-emoji {
+  font-size: 28px;
+  margin-bottom: 8px;
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+.intl-card:hover .intl-emoji {
+  transform: scale(1.15) rotate(5deg);
+}
+
+.intl-amt {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.intl-card:hover .intl-amt {
+  color: #ff5e5b; /* Ko-fi Red/Coral */
+}
+
+.intl-card.custom:hover .intl-amt {
+  color: var(--accent-amber);
+}
+
+.intl-desc {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.intl-helper-text {
+  font-size: 11px;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  line-height: 1.4;
+  margin-top: 4px;
 }
 
 
