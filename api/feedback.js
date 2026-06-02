@@ -10,21 +10,57 @@ let schemaInitialized = false;
 const memoryStore = new Map();
 
 /**
- * Ensures that the required table exists in the PostgreSQL database.
+ * Ensures that the required table exists and matches the deduplicated upsert schema.
  */
 async function ensureSchema(client) {
   if (schemaInitialized) return;
   
+  // 1. Create table structure if not exists (new setups)
   await client.query(`
     CREATE TABLE IF NOT EXISTS store_reports (
       id SERIAL PRIMARY KEY,
       store_id VARCHAR(255) NOT NULL,
+      user_id VARCHAR(255) NOT NULL,
       store_name VARCHAR(255),
       status VARCHAR(10) NOT NULL,
-      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT unique_store_user UNIQUE (store_id, user_id)
     );
   `);
   
+  // 2. ALTER table migrations (for existing setups created before this change)
+  const checkUserCol = await client.query(`
+    SELECT column_name 
+    FROM information_schema.columns 
+    WHERE table_name = 'store_reports' AND column_name = 'user_id'
+  `);
+  
+  if (checkUserCol.rows.length === 0) {
+    console.log('Migrating: Adding user_id column to store_reports...');
+    await client.query(`ALTER TABLE store_reports ADD COLUMN user_id VARCHAR(255);`);
+    await client.query(`UPDATE store_reports SET user_id = 'legacy_user' WHERE user_id IS NULL;`);
+    await client.query(`ALTER TABLE store_reports ALTER COLUMN user_id SET NOT NULL;`);
+  }
+
+  const checkConstraint = await client.query(`
+    SELECT constraint_name 
+    FROM information_schema.table_constraints 
+    WHERE table_name = 'store_reports' AND constraint_name = 'unique_store_user'
+  `);
+  
+  if (checkConstraint.rows.length === 0) {
+    console.log('Migrating: Adding unique_store_user constraint to store_reports...');
+    // Delete older duplicate user feedback before creating constraint
+    await client.query(`
+      DELETE FROM store_reports a USING store_reports b 
+      WHERE a.id < b.id AND a.store_id = b.store_id AND a.user_id = b.user_id;
+    `);
+    await client.query(`
+      ALTER TABLE store_reports ADD CONSTRAINT unique_store_user UNIQUE (store_id, user_id);
+    `);
+  }
+  
+  // 3. Create index for fast lookups
   await client.query(`
     CREATE INDEX IF NOT EXISTS idx_store_reports_lookup 
     ON store_reports(store_id, created_at DESC);
@@ -72,7 +108,7 @@ export default async function handler(req, res) {
         const reports = memoryStore.get(store_id) || [];
         const lastReport = reports[reports.length - 1] || null;
         
-        // Filter reports in the last 12 hours (mock logic: all reports in memory are within 12h for ease)
+        // Filter reports in the last 12 hours
         const openCount = reports.filter(r => r.status === 'open').length;
         const closedCount = reports.filter(r => r.status === 'closed').length;
         const totalCount = reports.length;
@@ -142,25 +178,36 @@ export default async function handler(req, res) {
       }
 
     } else if (req.method === 'POST') {
-      const { store_id, store_name, status } = req.body || {};
+      const { store_id, user_id, store_name, status } = req.body || {};
 
       if (!store_id || !status) {
         return res.status(400).json({ success: false, error: 'Missing store_id or status in request body' });
       }
+
+      const activeUserId = user_id || 'anonymous_user';
 
       if (status !== 'open' && status !== 'closed') {
         return res.status(400).json({ success: false, error: "Status must be either 'open' or 'closed'" });
       }
 
       if (!hasDb) {
-        // Fallback: Save to in-memory memoryStore
+        // Fallback: Save to in-memory memoryStore with upsert logic
         if (!memoryStore.has(store_id)) {
           memoryStore.set(store_id, []);
         }
-        memoryStore.get(store_id).push({
-          status,
-          createdAt: new Date().toISOString()
-        });
+        const reports = memoryStore.get(store_id);
+        const existingIndex = reports.findIndex(r => r.user_id === activeUserId);
+        
+        if (existingIndex !== -1) {
+          reports[existingIndex].status = status;
+          reports[existingIndex].createdAt = new Date().toISOString();
+        } else {
+          reports.push({
+            user_id: activeUserId,
+            status,
+            createdAt: new Date().toISOString()
+          });
+        }
 
         return res.status(200).json({
           success: true,
@@ -169,15 +216,17 @@ export default async function handler(req, res) {
         });
       }
 
-      // Write to database
+      // Write to database with UPSERT (ON CONFLICT DO UPDATE)
       const client = await pool.connect();
       try {
         await ensureSchema(client);
         
         await client.query(`
-          INSERT INTO store_reports (store_id, store_name, status) 
-          VALUES ($1, $2, $3)
-        `, [store_id, store_name || 'Unknown Store', status]);
+          INSERT INTO store_reports (store_id, user_id, store_name, status, created_at) 
+          VALUES ($1, $2, $3, $4, NOW())
+          ON CONFLICT (store_id, user_id) 
+          DO UPDATE SET status = EXCLUDED.status, created_at = NOW()
+        `, [store_id, activeUserId, store_name || 'Unknown Store', status]);
 
         return res.status(200).json({
           success: true,

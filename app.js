@@ -655,6 +655,18 @@ function getLocalStoreFeedback(storeId) {
 }
 
 /**
+ * Generates or retrieves a persistent anonymous device identifier.
+ */
+function getUserId() {
+  let userId = localStorage.getItem('theka_finder_user_id');
+  if (!userId) {
+    userId = `user_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+    localStorage.setItem('theka_finder_user_id', userId);
+  }
+  return userId;
+}
+
+/**
  * Submits store status feedback to the database with a localStorage fallback.
  */
 async function submitStoreFeedback(status) {
@@ -675,6 +687,7 @@ async function submitStoreFeedback(status) {
       },
       body: JSON.stringify({
         store_id: storeId,
+        user_id: getUserId(),
         store_name: storeName,
         status: status
       })
