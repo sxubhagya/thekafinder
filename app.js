@@ -106,7 +106,11 @@ const state = {
   lastVibrationTime: 0,
   hasGrantedLocation: false,
   hasGrantedOrientation: false,
-  hasArrivedAtCurrentStore: false
+  hasArrivedAtCurrentStore: false,
+  isDryState: false,
+  isDryZone: false,
+  dryStateName: '',
+  dryStateMessage: ''
 };
 
 // --- DOM ELEMENTS ---
@@ -364,6 +368,111 @@ function getStoreOpeningStatus(store) {
   }
 }
 
+// --- DRY STATES & GEOPROHIBITION CONFIG ---
+const DRY_STATES = [
+  {
+    name: 'Gujarat',
+    bbox: { minLat: 20.1, maxLat: 24.7, minLon: 68.1, maxLon: 74.5 },
+    wittyMessage: "🚨 Gujarat says no! Banned since 1960. Compass needle is spinning in absolute despair. Road trip to Rajasthan or Daman? 🚗💨"
+  },
+  {
+    name: 'Bihar',
+    bbox: { minLat: 24.3, maxLat: 27.5, minLon: 83.3, maxLon: 88.3 },
+    wittyMessage: "🚫 Nitish Kumar says hello! Bihar is dry. The compass refuses to point to anything here. Kathmandu is nice this time of year! 🏔️"
+  },
+  {
+    name: 'Nagaland',
+    bbox: { minLat: 25.2, maxLat: 27.1, minLon: 93.3, maxLon: 95.3 },
+    wittyMessage: "🚨 Nagaland Prohibition active! No thekas here. The compass is currently pointing to a glass of water. 💧"
+  },
+  {
+    name: 'Mizoram',
+    bbox: { minLat: 21.9, maxLat: 24.6, minLon: 92.2, maxLon: 93.5 },
+    wittyMessage: "🚫 Mizoram is dry! The needle is spinning out of control. No alcohol sales allowed. Drink some tea! ☕"
+  },
+  {
+    name: 'Lakshadweep',
+    bbox: { minLat: 8.0, maxLat: 12.5, minLon: 71.0, maxLon: 74.0 },
+    wittyMessage: "🌊 Lakshadweep is dry (except Bangaram Island)! The compass is drowning in sorrow. Grab a coconut instead! 🥥"
+  }
+];
+
+function getDryState(lat, lon) {
+  return DRY_STATES.find(state => 
+    lat >= state.bbox.minLat && lat <= state.bbox.maxLat && 
+    lon >= state.bbox.minLon && lon <= state.bbox.maxLon
+  );
+}
+
+let drySpinRequest = null;
+function runDrySpinLoop() {
+  if (!state.isDryState && !state.isDryZone) {
+    if (drySpinRequest) {
+      cancelAnimationFrame(drySpinRequest);
+      drySpinRequest = null;
+    }
+    return;
+  }
+  
+  // Update only the spinning needle elements
+  const spinningAngle = (Date.now() / 15) % 360;
+  if (elements.liquorNeedle) {
+    elements.liquorNeedle.style.transform = `rotate(${spinningAngle}deg)`;
+  }
+  if (elements.needleDistanceLabel) {
+    elements.needleDistanceLabel.style.transform = `translateX(-50%) rotate(${-spinningAngle}deg)`;
+  }
+  if (elements.arrowIndicator) {
+    elements.arrowIndicator.style.transform = `rotate(${spinningAngle}deg)`;
+  }
+  
+  drySpinRequest = requestAnimationFrame(runDrySpinLoop);
+}
+
+/**
+ * Triggers a satisfying sound, confetti shower, and custom glass toast
+ * when a donation is completed, without overriding compass state.
+ */
+function triggerDonationCelebration() {
+  triggerVibrationPulse(400);
+  
+  // Play beer pop + fizz sound
+  playBeerPopSound();
+  
+  // Shoot confetti
+  confetti.spawn();
+  
+  // Display toast message
+  showToast("Cheers! Thanks for the support! 🍻");
+}
+
+/**
+ * Displays a glassmorphic floating toast notification.
+ */
+function showToast(message) {
+  // Remove existing toast if any
+  const existing = document.querySelector('.glass-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'glass-toast';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  // Trigger animation
+  setTimeout(() => {
+    toast.classList.add('visible');
+  }, 50);
+  
+  // Remove after 3.5 seconds
+  setTimeout(() => {
+    toast.classList.remove('visible');
+    setTimeout(() => {
+      toast.remove();
+    }, 500);
+  }, 3500);
+}
+
 /**
  * Calculates Haversine distance between two sets of GPS coordinates in meters.
  */
@@ -532,7 +641,30 @@ function updateCompassDisplay() {
   elements.locationText.textContent = formatCoordinates(state.userLocation.lat, state.userLocation.lon);
   
   // 4. Update the liquor needle and target metrics
-  if (state.nearestStore) {
+  if (state.isDryState || state.isDryZone) {
+    elements.needleDistanceLabel.textContent = '❌';
+    elements.arrowIndicator.style.color = 'var(--accent-red)';
+    
+    // Update bottom card panel
+    elements.thekaName.textContent = state.dryStateName || 'Dry Zone Detected';
+    elements.thekaAddress.textContent = state.dryStateMessage || 'Prohibition is active here.';
+    
+    // Reset standard metrics
+    elements.metricDistance.textContent = '--';
+    elements.metricDistanceUnit.textContent = '';
+    elements.metricSteps.textContent = '--';
+    elements.directionInstructions.textContent = '🚫 Dry Zone! Compass is spinning in grief.';
+    
+    if (elements.btnAppleMaps) elements.btnAppleMaps.classList.add('disabled');
+    if (elements.btnGoogleMaps) elements.btnGoogleMaps.classList.add('disabled');
+    if (elements.thekaSourceBadge) elements.thekaSourceBadge.style.display = 'none';
+    if (elements.thekaOpenStatus) elements.thekaOpenStatus.style.display = 'none';
+    
+    // Telemetry
+    elements.telemetryThekaPos.textContent = 'PROHIBITED';
+    elements.telemetryBearing.textContent = 'SPIN';
+    elements.telemetryRelBearing.textContent = 'SPIN';
+  } else if (state.nearestStore) {
     const bearing = calculateBearing(
       state.userLocation.lat, state.userLocation.lon,
       state.nearestStore.lat, state.nearestStore.lon
@@ -753,13 +885,44 @@ async function findNearestLiquorStore(lat, lon) {
   // 3. Merge both databases (Foursquare/OSM + Google Maps coordinates)
   const mergedStores = [...googleStoresWithDistance, ...osmStores];
   
-  if (mergedStores.length > 0) {
+  // Check if they are in an Indian dry state bounding box
+  const dryState = getDryState(lat, lon);
+  
+  if (dryState) {
+    state.isDryState = true;
+    state.isDryZone = false;
+    state.dryStateName = `Prohibition: ${dryState.name}`;
+    state.dryStateMessage = dryState.wittyMessage;
+    state.stores = [];
+    state.nearestStore = null;
+    updateStatus('Prohibition Alert 🚨');
+    updateCompassDisplay();
+    runDrySpinLoop();
+  } else if (mergedStores.length > 0) {
+    state.isDryState = false;
+    state.isDryZone = false;
     state.stores = mergedStores;
     sortAndSetNearest();
     updateStatus('Theka locked on target', true);
   } else {
-    // Fallback if absolutely nothing is mapped anywhere
-    loadFallbackMockStores(lat, lon);
+    // If no stores were found anywhere:
+    if (state.isMockMode) {
+      // In simulator test mode, generate mock shops around the user
+      state.isDryState = false;
+      state.isDryZone = false;
+      loadFallbackMockStores(lat, lon);
+    } else {
+      // In real GPS mode, treat as a dry zone / no stores found
+      state.isDryState = false;
+      state.isDryZone = true;
+      state.dryStateName = 'Dry Zone Detected';
+      state.dryStateMessage = "🌵 Desert Alert! No liquor stores found within 15km. Either it's a local dry zone, or you are in a remote paradise. Keep searching, or grab a bottle of water! 💧";
+      state.stores = [];
+      state.nearestStore = null;
+      updateStatus('Dry Zone Detected 🌵');
+      updateCompassDisplay();
+      runDrySpinLoop();
+    }
   }
 }
 
@@ -822,6 +985,9 @@ async function fetchOverpassStores(lat, lon, radius) {
  */
 function loadFallbackMockStores(lat, lon) {
   console.log("Using dynamic mock shops fallback based on user location");
+  
+  state.isDryState = false;
+  state.isDryZone = false;
   
   // Generate 4 mock shops placed in different quadrants around user
   state.stores = [
@@ -1122,6 +1288,8 @@ function loadMockLocation(key) {
   const region = MOCK_REGIONS[key];
   if (!region) return;
   
+  state.isDryState = false;
+  state.isDryZone = false;
   state.userLocation.lat = region.lat;
   state.userLocation.lon = region.lon;
   state.stores = JSON.parse(JSON.stringify(region.shops)); // Deep copy
@@ -1271,6 +1439,8 @@ function init() {
     const lon = parseFloat(elements.customLon.value);
     
     if (!isNaN(lat) && !isNaN(lon)) {
+      state.isDryState = false;
+      state.isDryZone = false;
       state.userLocation.lat = lat;
       state.userLocation.lon = lon;
       
@@ -1363,9 +1533,9 @@ function init() {
       elements.btnBeerSuccess.addEventListener('click', () => {
         elements.beerModal.classList.add('hidden');
         
-        // Trigger celebration (hiss, pop sound, and confetti!)
+        // Trigger donation celebration (hiss, pop sound, and confetti!)
         setTimeout(() => {
-          triggerArrivalCelebration();
+          triggerDonationCelebration();
         }, 300);
       });
     }
@@ -1400,7 +1570,7 @@ function init() {
         
         // Wait for redirect to happen then trigger celebration
         setTimeout(() => {
-          triggerArrivalCelebration();
+          triggerDonationCelebration();
         }, 1000);
       });
     });
