@@ -81,6 +81,7 @@ export default async function handler(req, res) {
         lat: place.geometry?.location?.lat,
         lon: place.geometry?.location?.lng,
         address: place.vicinity || 'Coordinates locked',
+        openNow: place.opening_hours?.open_now,
         source: 'Google Maps'
       };
     }).filter(place => place.lat !== undefined && place.lon !== undefined);

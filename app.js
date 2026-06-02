@@ -162,7 +162,11 @@ const elements = {
   btnCloseBeerModal: document.getElementById('btn-close-beer-modal'),
   btnCopyUpi: document.getElementById('btn-copy-upi'),
   btnBeerSuccess: document.getElementById('btn-beer-success'),
-  upiAddress: document.getElementById('upi-address')
+  upiAddress: document.getElementById('upi-address'),
+  
+  // Open Status Badge Elements
+  thekaOpenStatus: document.getElementById('theka-open-status'),
+  thekaOpenText: document.getElementById('theka-open-text')
 };
 
 // --- CONFETTI & SOUND SYSTEMS ---
@@ -324,7 +328,41 @@ function triggerArrivalCelebration() {
   }
 }
 
-// --- MATHEMATICAL UTILITIES ---
+/**
+ * Resolves the shop's open status (Open, Closed, Closing Soon) based on current local time.
+ * Standard Indian/local liquor store hours are 10:00 AM to 10:00 PM.
+ */
+function getStoreOpeningStatus(store) {
+  const now = new Date();
+  const hour = now.getHours();
+  const minute = now.getMinutes();
+  
+  // If the store specifically returns open_now from Google
+  if (store.openNow === false) {
+    return {
+      text: 'Closed • Opens at 10:00 AM',
+      class: 'closed'
+    };
+  }
+  
+  if (hour < 10 || hour >= 22) {
+    return {
+      text: 'Closed • Opens at 10:00 AM',
+      class: 'closed'
+    };
+  } else if (hour === 21) {
+    const minsLeft = 60 - minute;
+    return {
+      text: `Closes in ${minsLeft} mins`,
+      class: 'closing-soon'
+    };
+  } else {
+    return {
+      text: 'Open Now • Closes at 10:00 PM',
+      class: 'open'
+    };
+  }
+}
 
 /**
  * Calculates Haversine distance between two sets of GPS coordinates in meters.
@@ -596,6 +634,17 @@ function updateCompassDisplay() {
       }
     }
     
+    // Update Open Status Badge
+    if (elements.thekaOpenStatus && elements.thekaOpenText) {
+      const status = getStoreOpeningStatus(state.nearestStore);
+      elements.thekaOpenText.textContent = status.text;
+      
+      // Reset classes and set status class
+      elements.thekaOpenStatus.className = 'theka-status-badge open-status-badge';
+      elements.thekaOpenStatus.classList.add(status.class);
+      elements.thekaOpenStatus.style.display = 'inline-flex';
+    }
+    
     // Update Telemetry panel
     elements.telemetryThekaPos.textContent = `${state.nearestStore.lat.toFixed(5)}, ${state.nearestStore.lon.toFixed(5)}`;
     elements.telemetryBearing.textContent = `${Math.round(bearing)}°`;
@@ -610,6 +659,7 @@ function updateCompassDisplay() {
     if (elements.btnAppleMaps) elements.btnAppleMaps.classList.add('disabled');
     if (elements.btnGoogleMaps) elements.btnGoogleMaps.classList.add('disabled');
     if (elements.thekaSourceBadge) elements.thekaSourceBadge.style.display = 'none';
+    if (elements.thekaOpenStatus) elements.thekaOpenStatus.style.display = 'none';
   }
   
   // Update Simulator telemetry
@@ -1319,6 +1369,41 @@ function init() {
         }, 300);
       });
     }
+
+    // Tab switching inside payment modal
+    const tabIndia = document.getElementById('tab-india');
+    const tabIntl = document.getElementById('tab-intl');
+    const panelIndia = document.getElementById('panel-india');
+    const panelIntl = document.getElementById('panel-intl');
+    
+    if (tabIndia && tabIntl && panelIndia && panelIntl) {
+      tabIndia.addEventListener('click', () => {
+        tabIndia.classList.add('active');
+        tabIntl.classList.remove('active');
+        panelIndia.classList.add('active');
+        panelIntl.classList.remove('active');
+      });
+      
+      tabIntl.addEventListener('click', () => {
+        tabIntl.classList.add('active');
+        tabIndia.classList.remove('active');
+        panelIntl.classList.add('active');
+        panelIndia.classList.remove('active');
+      });
+    }
+    
+    // Confetti celebration when international cards are clicked
+    const intlCards = document.querySelectorAll('.intl-card');
+    intlCards.forEach(card => {
+      card.addEventListener('click', () => {
+        elements.beerModal.classList.add('hidden');
+        
+        // Wait for redirect to happen then trigger celebration
+        setTimeout(() => {
+          triggerArrivalCelebration();
+        }, 1000);
+      });
+    });
   }
   
   // Initial dial generation on startup
