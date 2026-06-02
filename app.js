@@ -110,7 +110,9 @@ const state = {
   isDryState: false,
   isDryZone: false,
   dryStateName: '',
-  dryStateMessage: ''
+  dryStateMessage: '',
+  lastSearchCoords: null,
+  cachedStores: []
 };
 
 // --- DOM ELEMENTS ---
@@ -170,7 +172,9 @@ const elements = {
   
   // Open Status Badge Elements
   thekaOpenStatus: document.getElementById('theka-open-status'),
-  thekaOpenText: document.getElementById('theka-open-text')
+  thekaOpenText: document.getElementById('theka-open-text'),
+  btnShareTheka: document.getElementById('btn-share-theka'),
+  btnRefreshTheka: document.getElementById('btn-refresh-theka')
 };
 
 // --- CONFETTI & SOUND SYSTEMS ---
@@ -397,6 +401,30 @@ const DRY_STATES = [
   }
 ];
 
+const BORDER_OASES = {
+  'Gujarat': [
+    { name: 'Abu Road (Rajasthan)', lat: 24.4824, lon: 72.7836 },
+    { name: 'Daman (Union Territory)', lat: 20.3974, lon: 72.8328 },
+    { name: 'Diu (Union Territory)', lat: 20.7144, lon: 70.9874 }
+  ],
+  'Bihar': [
+    { name: 'Nepal Border (Kathmandu)', lat: 27.7172, lon: 85.3240 },
+    { name: 'Siliguri (West Bengal)', lat: 26.7271, lon: 88.3953 },
+    { name: 'Varanasi (Uttar Pradesh)', lat: 25.3176, lon: 82.9739 }
+  ],
+  'Nagaland': [
+    { name: 'Lahorijan (Assam Border)', lat: 25.8950, lon: 93.7500 },
+    { name: 'Bokajan (Assam Border)', lat: 26.0205, lon: 93.7915 }
+  ],
+  'Mizoram': [
+    { name: 'Silchar (Assam Border)', lat: 24.8333, lon: 92.8000 }
+  ],
+  'Lakshadweep': [
+    { name: 'Kochi (Kerala Coast)', lat: 9.9312, lon: 76.2673 },
+    { name: 'Mangalore (Karnataka Coast)', lat: 12.9141, lon: 74.8560 }
+  ]
+};
+
 function getDryState(lat, lon) {
   return DRY_STATES.find(state => 
     lat >= state.bbox.minLat && lat <= state.bbox.maxLat && 
@@ -406,7 +434,7 @@ function getDryState(lat, lon) {
 
 let drySpinRequest = null;
 function runDrySpinLoop() {
-  if (!state.isDryState && !state.isDryZone) {
+  if (!state.isDryZone) {
     if (drySpinRequest) {
       cancelAnimationFrame(drySpinRequest);
       drySpinRequest = null;
@@ -471,6 +499,46 @@ function showToast(message) {
       toast.remove();
     }, 500);
   }, 3500);
+}
+
+/**
+ * Triggers Web Share API or copies a witty description to clipboard.
+ */
+function shareTheka() {
+  let message = '';
+  if (state.isDryState) {
+    if (state.nearestStore && state.nearestStore.id === 'oasis') {
+      const dist = state.nearestStore.distance;
+      const distText = dist >= 1000 ? `${(dist / 1000).toFixed(0)} km` : `${Math.round(dist)} m`;
+      message = `Prohibition alert! 🚨 Stuck in a dry state, but my compass points directly to the closest wet Border Oasis (${state.nearestStore.name.replace('Border Oasis: ', '')}) which is ${distText} away! Join the road trip: https://thekafinder.vercel.app`;
+    } else {
+      message = `Compass is spinning in grief... 🚨 Stuck in a dry state! Save me: https://thekafinder.vercel.app`;
+    }
+  } else if (state.isDryZone) {
+    message = `Desert alert! 🌵 No liquor stores found within 15km. Keep looking with me: https://thekafinder.vercel.app`;
+  } else if (state.nearestStore) {
+    const dist = state.nearestStore.distance;
+    const distText = dist >= 1000 ? `${(dist / 1000).toFixed(1)} km` : `${Math.round(dist)} meters`;
+    message = `Hunting for liquid gold! 🍻 Compass says nearest theka (${state.nearestStore.name}) is ${distText} away. Lock on bearing: https://thekafinder.vercel.app`;
+  } else {
+    message = `Finding nearest liquid gold! Connect to my compass: https://thekafinder.vercel.app`;
+  }
+  
+  if (navigator.share) {
+    navigator.share({
+      title: 'Theka Finder',
+      text: message,
+      url: 'https://thekafinder.vercel.app'
+    }).catch(err => console.log('Share canceled', err));
+  } else {
+    navigator.clipboard.writeText(message)
+      .then(() => {
+        showToast('Invite copied to clipboard! Send to your gang! 🍻');
+      })
+      .catch(err => {
+        console.error('Failed to copy share text:', err);
+      });
+  }
 }
 
 /**
@@ -833,8 +901,33 @@ async function fetchGooglePlacesStores(lat, lon, radius) {
 /**
  * Queries OSM Overpass API and Google Places API to search for shops in widening radii.
  */
-async function findNearestLiquorStore(lat, lon) {
+async function findNearestLiquorStore(lat, lon, force = false) {
+  // Distance-Based Caching Check
+  if (!force && state.lastSearchCoords) {
+    const distanceMoved = haversineDistance(lat, lon, state.lastSearchCoords.lat, state.lastSearchCoords.lon);
+    if (distanceMoved < 500 && state.cachedStores.length > 0) {
+      console.log(`Using cached stores. User moved ${Math.round(distanceMoved)}m (under 500m threshold).`);
+      state.stores = JSON.parse(JSON.stringify(state.cachedStores));
+      
+      if (state.isDryZone) {
+        updateStatus('Dry Zone Detected 🌵');
+        updateCompassDisplay();
+        runDrySpinLoop();
+      } else {
+        sortAndSetNearest();
+        updateStatus(state.isDryState ? `Prohibition active 🚨` : 'Theka locked on target (Cached)', true);
+        updateCompassDisplay();
+      }
+      return;
+    }
+  }
+
   updateStatus('Locating nearby liquor stores...');
+  
+  // Show refresh spinner
+  if (elements.btnRefreshTheka) {
+    elements.btnRefreshTheka.classList.add('spinning');
+  }
   
   // 1. Fetch from Google Places API via our secure serverless proxy
   let googleStores = [];
@@ -891,13 +984,45 @@ async function findNearestLiquorStore(lat, lon) {
   if (dryState) {
     state.isDryState = true;
     state.isDryZone = false;
-    state.dryStateName = `Prohibition: ${dryState.name}`;
-    state.dryStateMessage = dryState.wittyMessage;
-    state.stores = [];
-    state.nearestStore = null;
-    updateStatus('Prohibition Alert 🚨');
-    updateCompassDisplay();
-    runDrySpinLoop();
+    
+    // Find closest border oasis
+    const oases = BORDER_OASES[dryState.name] || [];
+    let closestOasis = null;
+    let minDistance = Infinity;
+    oases.forEach(oasis => {
+      const dist = haversineDistance(lat, lon, oasis.lat, oasis.lon);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestOasis = oasis;
+      }
+    });
+    
+    if (closestOasis) {
+      state.nearestStore = {
+        id: 'oasis',
+        name: `Border Oasis: ${closestOasis.name}`,
+        lat: closestOasis.lat,
+        lon: closestOasis.lon,
+        address: `Nearest wet town. Pack your bags! 🚗💨`,
+        source: 'Oasis Pointer'
+      };
+      state.stores = [state.nearestStore];
+      state.nearestStore.distance = minDistance;
+      
+      updateStatus(`Prohibition in ${dryState.name} 🚨`);
+      updateCompassDisplay();
+      
+      if (drySpinRequest) {
+        cancelAnimationFrame(drySpinRequest);
+        drySpinRequest = null;
+      }
+    } else {
+      state.stores = [];
+      state.nearestStore = null;
+      updateStatus('Prohibition Alert 🚨');
+      updateCompassDisplay();
+      runDrySpinLoop();
+    }
   } else if (mergedStores.length > 0) {
     state.isDryState = false;
     state.isDryZone = false;
@@ -923,6 +1048,15 @@ async function findNearestLiquorStore(lat, lon) {
       updateCompassDisplay();
       runDrySpinLoop();
     }
+  }
+
+  // Cache results
+  state.lastSearchCoords = { lat, lon };
+  state.cachedStores = JSON.parse(JSON.stringify(state.stores));
+  
+  // Hide refresh spinner
+  if (elements.btnRefreshTheka) {
+    elements.btnRefreshTheka.classList.remove('spinning');
   }
 }
 
@@ -1485,6 +1619,16 @@ function init() {
   elements.btnDismissCalibration.addEventListener('click', () => {
     elements.calibrationOverlay.classList.remove('active');
   });
+
+  // 6. Share and Manual Refresh handlers
+  if (elements.btnShareTheka) {
+    elements.btnShareTheka.addEventListener('click', shareTheka);
+  }
+  if (elements.btnRefreshTheka) {
+    elements.btnRefreshTheka.addEventListener('click', () => {
+      findNearestLiquorStore(state.userLocation.lat, state.userLocation.lon, true);
+    });
+  }
 
   // 6. Buy Me a Beer Modal Handlers
   if (elements.btnBuyBeer && elements.beerModal) {

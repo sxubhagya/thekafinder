@@ -1703,5 +1703,141 @@ body.admin .btn-action-secondary.admin-only {
   transform: translate(-50%, 0);
 }
 
+/* --- MANUAL REFRESH BUTTON --- */
+.btn-refresh {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+  margin-left: 8px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
 
+.btn-refresh:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.1);
+}
 
+.btn-refresh:active {
+  transform: scale(0.9);
+}
+
+.btn-refresh.spinning svg {
+  animation: spinLoader 1s infinite linear;
+}
+
+@keyframes spinLoader {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- PINT SWELL CALIBRATION LOADER --- */
+.pint-calibration-loader {
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 20px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pint-glass-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4));
+  animation: pintSwirl 3s infinite ease-in-out;
+}
+
+.beer-liquid {
+  transform-origin: 50% 80%;
+  animation: beerSlosh 3s infinite ease-in-out;
+}
+
+.beer-foam {
+  transform-origin: 50% 30%;
+  animation: foamSlosh 3s infinite ease-in-out;
+}
+
+.beer-foam-bubble {
+  transform-origin: 50% 30%;
+  animation: foamSlosh 3s infinite ease-in-out;
+}
+
+.pint-bubble {
+  animation: bubbleRise 2s infinite linear;
+}
+.bubble-1 { animation-delay: 0.2s; }
+.bubble-2 { animation-delay: 0.8s; }
+.bubble-3 { animation-delay: 1.4s; }
+
+@keyframes pintSwirl {
+  0%, 100% {
+    transform: rotate(0deg) translate(0, 0);
+  }
+  25% {
+    transform: rotate(6deg) translate(4px, -2px);
+  }
+  50% {
+    transform: rotate(-6deg) translate(-4px, 2px);
+  }
+  75% {
+    transform: rotate(4deg) translate(2px, 2px);
+  }
+}
+
+@keyframes beerSlosh {
+  0%, 100% {
+    transform: skewX(0deg);
+  }
+  25% {
+    transform: skewX(-5deg) scaleY(1.02);
+  }
+  50% {
+    transform: skewX(5deg) scaleY(0.98);
+  }
+  75% {
+    transform: skewX(-3deg) scaleY(1.01);
+  }
+}
+
+@keyframes foamSlosh {
+  0%, 100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate(-3px, 1px) rotate(-3deg);
+  }
+  50% {
+    transform: translate(3px, -1px) rotate(3deg);
+  }
+  75% {
+    transform: translate(-1px, 0px) rotate(-1deg);
+  }
+}
+
+@keyframes bubbleRise {
+  0% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+}

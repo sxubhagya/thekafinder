@@ -162,6 +162,11 @@
             <span class="status-dot pulsing"></span>
             <span id="theka-status-text">Searching for nearest theka...</span>
             <span id="theka-source-badge" class="source-badge"></span>
+            <button id="btn-refresh-theka" class="btn-refresh" title="Force Refresh Location">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+              </svg>
+            </button>
           </div>
 
           <div class="theka-info-header">
@@ -212,6 +217,12 @@
                 <path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.27-.36.48v15.12c0 .22.14.42.36.48l5.5 1.98L15 20.9l5.64 1.9c.08.03.16.04.24.04.21 0 .42-.1.52-.3.1-.17.1-.38.1-.58V3.5c0-.25-.15-.46-.3-.5zm-6.5 16.1l-4-1.4V5l4 1.4v12.7z M12 6.5C10.1 6.5 8.5 8.1 8.5 10c0 2.5 3.5 6.5 3.5 6.5s3.5-4 3.5-6.5c0-1.9-1.6-3.5-3.5-3.5zm0 4.8c-.7 0-1.3-.6-1.3-1.3s.6-1.3 1.3-1.3 1.3.6 1.3 1.3-.6 1.3-1.3 1.3z"/>
               </svg>
             </a>
+            <button id="btn-share-theka" class="btn-action-secondary">
+              <span>Tell the Gang</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92zM18 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM6 13c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm12 7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>
+              </svg>
+            </button>
             <button id="btn-toggle-simulator-drawer" class="btn-action-secondary admin-only" style="padding: 12px 14px;">
               <span>🧭</span>
             </button>
@@ -345,9 +356,19 @@
     <!-- Calibration Alert Overlay -->
     <div id="calibration-overlay" class="calibration-overlay">
       <div class="calibration-card glass-container">
-        <div class="infinity-loader">
-          <span></span>
-          <span></span>
+        <div class="pint-calibration-loader">
+          <svg viewBox="0 0 100 100" class="pint-glass-svg">
+            <path class="glass-rim" d="M35 15 L65 15" stroke="rgba(255,255,255,0.4)" stroke-width="2" fill="none" />
+            <path class="glass-body" d="M35 15 L40 80 C40 85, 60 85, 60 80 L65 15" stroke="rgba(255,255,255,0.3)" stroke-width="3" fill="none" stroke-linejoin="round" />
+            <path class="beer-liquid" d="M40 80 L60 80 L63 30 C58 28, 42 28, 37 30 Z" fill="var(--accent-amber)" />
+            <ellipse class="beer-foam" cx="50" cy="30" rx="13" ry="5" fill="#ffffff" />
+            <circle class="beer-foam-bubble" cx="42" cy="27" r="3" fill="#ffffff" />
+            <circle class="beer-foam-bubble" cx="50" cy="26" r="4" fill="#ffffff" />
+            <circle class="beer-foam-bubble" cx="58" cy="28" r="3" fill="#ffffff" />
+            <circle class="pint-bubble bubble-1" cx="44" cy="65" r="1.5" fill="rgba(255,255,255,0.6)" />
+            <circle class="pint-bubble bubble-2" cx="54" cy="55" r="1.2" fill="rgba(255,255,255,0.6)" />
+            <circle class="pint-bubble bubble-3" cx="48" cy="45" r="1.8" fill="rgba(255,255,255,0.6)" />
+          </svg>
         </div>
         <h3>Calibrating Sensors</h3>
         <p>Please wave your phone in a figure-8 motion to calibrate the magnetometer.</p>
