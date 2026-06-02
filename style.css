@@ -616,7 +616,15 @@ h1 {
 
 .card-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+}
+
+.card-actions > a,
+.card-actions > button {
+  flex: 1 1 calc(50% - 5px);
+  min-width: 120px;
+  justify-content: center;
 }
 
 .btn-action-primary {
