@@ -154,7 +154,15 @@ const elements = {
   telemetryRelBearing: document.getElementById('telemetry-rel-bearing'),
   calibrationOverlay: document.getElementById('calibration-overlay'),
   btnDismissCalibration: document.getElementById('btn-dismiss-calibration'),
-  confettiCanvas: document.getElementById('confetti-canvas')
+  confettiCanvas: document.getElementById('confetti-canvas'),
+  
+  // Buy Me a Beer Modal Elements
+  beerModal: document.getElementById('beer-modal'),
+  btnBuyBeer: document.getElementById('btn-buy-beer'),
+  btnCloseBeerModal: document.getElementById('btn-close-beer-modal'),
+  btnCopyUpi: document.getElementById('btn-copy-upi'),
+  btnBeerSuccess: document.getElementById('btn-beer-success'),
+  upiAddress: document.getElementById('upi-address')
 };
 
 // --- CONFETTI & SOUND SYSTEMS ---
@@ -1257,6 +1265,61 @@ function init() {
   elements.btnDismissCalibration.addEventListener('click', () => {
     elements.calibrationOverlay.classList.remove('active');
   });
+
+  // 6. Buy Me a Beer Modal Handlers
+  if (elements.btnBuyBeer && elements.beerModal) {
+    elements.btnBuyBeer.addEventListener('click', () => {
+      elements.beerModal.classList.remove('hidden');
+      unlockAudio(); // Unlock audio on click gesture
+    });
+    
+    elements.btnCloseBeerModal.addEventListener('click', () => {
+      elements.beerModal.classList.add('hidden');
+    });
+    
+    // Close modal when clicking outside content area
+    elements.beerModal.addEventListener('click', (e) => {
+      if (e.target === elements.beerModal) {
+        elements.beerModal.classList.add('hidden');
+      }
+    });
+    
+    // Copy UPI ID functionality
+    if (elements.btnCopyUpi && elements.upiAddress) {
+      elements.btnCopyUpi.addEventListener('click', () => {
+        const textToCopy = elements.upiAddress.textContent;
+        navigator.clipboard.writeText(textToCopy)
+          .then(() => {
+            const originalText = elements.btnCopyUpi.textContent;
+            elements.btnCopyUpi.textContent = 'Copied!';
+            elements.btnCopyUpi.style.background = 'rgba(40, 167, 69, 0.2)';
+            elements.btnCopyUpi.style.color = '#28a745';
+            
+            setTimeout(() => {
+              elements.btnCopyUpi.textContent = originalText;
+              elements.btnCopyUpi.style.background = '';
+              elements.btnCopyUpi.style.color = '';
+            }, 2000);
+          })
+          .catch(err => {
+            console.error('Failed to copy UPI address:', err);
+            alert(`UPI Address: ${textToCopy}`);
+          });
+      });
+    }
+    
+    // "I've Donated" success button
+    if (elements.btnBeerSuccess) {
+      elements.btnBeerSuccess.addEventListener('click', () => {
+        elements.beerModal.classList.add('hidden');
+        
+        // Trigger celebration (hiss, pop sound, and confetti!)
+        setTimeout(() => {
+          triggerArrivalCelebration();
+        }, 300);
+      });
+    }
+  }
   
   // Initial dial generation on startup
   generateCompassDial();

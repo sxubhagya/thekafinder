@@ -37,19 +37,7 @@
         <div id="welcome-state" class="state-container active">
           <div class="app-icon-container">
             <div class="app-icon-glow"></div>
-            <svg viewBox="0 0 100 100" class="app-icon-svg">
-              <defs>
-                <linearGradient id="amber-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#ffb703" />
-                  <stop offset="100%" stop-color="#fb8500" />
-                </linearGradient>
-              </defs>
-              <circle cx="50" cy="50" r="45" fill="none" stroke="url(#amber-gradient)" stroke-width="2" />
-              <path d="M35,30 H65 V42 C65,55 55,65 50,65 C45,65 35,55 35,42 Z" fill="url(#amber-gradient)" opacity="0.85" />
-              <path d="M50,65 V80" stroke="url(#amber-gradient)" stroke-width="6" stroke-linecap="round" />
-              <path d="M40,80 H60" stroke="url(#amber-gradient)" stroke-width="6" stroke-linecap="round" />
-              <path d="M42,42 H58" stroke="#000" stroke-width="2" opacity="0.3" />
-            </svg>
+            <img src="/logo.png" alt="Theka Finder Logo" class="app-icon-img">
           </div>
           
           <h1>THEKA FINDER</h1>
@@ -212,7 +200,7 @@
                 <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
               </svg>
             </a>
-            <a href="#" id="btn-google-maps" target="_blank" class="btn-action-primary disabled" style="background: rgba(66, 133, 244, 0.15); color: #4285F4; border: 1px solid rgba(66, 133, 244, 0.3);">
+            <a href="#" id="btn-google-maps" target="_blank" class="btn-action-primary disabled">
               <span>Google Maps</span>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                 <path d="M12.244 10.182V12.72h5.719c-.237 1.349-1.503 3.96-5.719 3.96-3.64 0-6.61-3.016-6.61-6.732s2.97-6.732 6.61-6.732c2.071 0 3.46.858 4.254 1.62l2.007-1.929C17.02 1.603 14.82 1 12.244 1 6.033 1 1 6.033 1 12.244s5.033 11.244 11.244 11.244c6.482 0 10.793-4.554 10.793-10.996 0-.742-.08-1.31-.176-1.79H12.244z"/>
@@ -221,6 +209,35 @@
             <button id="btn-toggle-simulator-drawer" class="btn-action-secondary admin-only" style="padding: 12px 14px;">
               <span>🧭</span>
             </button>
+          </div>
+
+          <hr class="card-divider">
+
+          <!-- Developer Credits & Donate CTA -->
+          <div class="dev-credits-container">
+            <div class="dev-info">
+              <span class="made-with-love">Made with <span>♥</span> by <a href="https://github.com/sxubhagya" target="_blank" class="dev-name">Soubhagya</a></span>
+              <span class="location-tagline">from Sonipat to the world</span>
+            </div>
+            
+            <div class="dev-social-actions">
+              <div class="social-icons">
+                <a href="https://www.instagram.com/soubh44gy4" target="_blank" aria-label="Instagram">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+                  </svg>
+                </a>
+                <a href="https://www.linkedin.com/in/soubhagyadas" target="_blank" aria-label="LinkedIn">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                  </svg>
+                </a>
+              </div>
+              
+              <button id="btn-buy-beer" class="btn-buy-beer">
+                <span>🍺 Buy me a beer</span>
+              </button>
+            </div>
           </div>
         </div>
       </footer>
@@ -335,6 +352,59 @@
 
   <!-- Full-Screen Confetti Canvas -->
   <canvas id="confetti-canvas"></canvas>
+
+  <!-- Buy Me a Beer Modal Overlay -->
+  <div id="beer-modal" class="modal-overlay hidden">
+    <div class="glass-container modal-content">
+      <button id="btn-close-beer-modal" class="btn-close-modal">&times;</button>
+      <div class="beer-modal-header">
+        <span class="beer-modal-emoji">🍺</span>
+        <h3>Buy me a Beer!</h3>
+        <p class="subtitle">If this compass helped you find a cold beverage, consider supporting Soubhagya!</p>
+      </div>
+      
+      <div class="beer-payment-box">
+        <div class="upi-option">
+          <span class="payment-label">UPI ID:</span>
+          <div class="upi-id-row">
+            <code id="upi-address">soubhagyadas.24-1@okaxis</code>
+            <button id="btn-copy-upi" class="btn-copy">Copy</button>
+          </div>
+        </div>
+        
+        <div class="qr-code-placeholder">
+          <div class="qr-frame">
+            <div class="qr-square qr-tl"></div>
+            <div class="qr-square qr-tr"></div>
+            <div class="qr-square qr-bl"></div>
+            <div class="qr-dots-bg">
+              <svg viewBox="0 0 100 100" width="100%" height="100%" fill="#000000" opacity="0.8">
+                <rect x="15" y="15" width="20" height="20" fill="none" stroke="currentColor" stroke-width="4"/>
+                <rect x="21" y="21" width="8" height="8"/>
+                <rect x="65" y="15" width="20" height="20" fill="none" stroke="currentColor" stroke-width="4"/>
+                <rect x="71" y="21" width="8" height="8"/>
+                <rect x="15" y="65" width="20" height="20" fill="none" stroke="currentColor" stroke-width="4"/>
+                <rect x="21" y="71" width="8" height="8"/>
+                <rect x="45" y="45" width="10" height="10"/>
+                <rect x="40" y="25" width="5" height="15"/>
+                <rect x="55" y="20" width="5" height="5"/>
+                <rect x="20" y="45" width="15" height="5"/>
+                <rect x="45" y="65" width="10" height="5"/>
+                <rect x="65" y="45" width="15" height="10"/>
+                <rect x="65" y="65" width="5" height="15"/>
+                <rect x="80" y="80" width="5" height="5"/>
+              </svg>
+            </div>
+          </div>
+          <p class="qr-instructions">Scan to pay with any UPI App</p>
+        </div>
+      </div>
+      
+      <button id="btn-beer-success" class="btn-primary">
+        <span>I've Donated! 🍺</span>
+      </button>
+    </div>
+  </div>
 
   <script type="module" src="/app.js"></script>
 </body>
