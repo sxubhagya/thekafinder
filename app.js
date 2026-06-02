@@ -113,7 +113,9 @@ const state = {
   dryStateMessage: '',
   lastSearchCoords: null,
   cachedStores: [],
-  loadedFeedbackStoreId: null
+  loadedFeedbackStoreId: null,
+  isRefreshCooldown: false,
+  isFeedbackCooldown: false
 };
 
 // --- DOM ELEMENTS ---
@@ -592,6 +594,10 @@ async function loadStoreFeedback(storeId) {
 
   try {
     const res = await fetch(`/api/feedback?store_id=${encodeURIComponent(storeId)}`);
+    if (res.status === 429) {
+      showToast('Too many requests. Please wait a moment. ⏳');
+      throw new Error('Rate limited');
+    }
     const data = await res.json();
     
     if (data.success && elements.feedbackMetricsText) {
@@ -671,12 +677,19 @@ function getUserId() {
  */
 async function submitStoreFeedback(status) {
   if (!state.nearestStore) return;
+  if (state.isFeedbackCooldown) {
+    showToast('Please wait a moment before reporting again. ⏳');
+    return;
+  }
+
   const storeId = state.nearestStore.id || `${state.nearestStore.lat.toFixed(5)}_${state.nearestStore.lon.toFixed(5)}`;
   const storeName = state.nearestStore.name || 'Unknown Store';
 
   // Set visual button loading state or disable
   if (elements.btnReportOpen) elements.btnReportOpen.disabled = true;
   if (elements.btnReportClosed) elements.btnReportClosed.disabled = true;
+
+  state.isFeedbackCooldown = true;
 
   try {
     // 1. Submit to API endpoint
@@ -693,6 +706,11 @@ async function submitStoreFeedback(status) {
       })
     });
     
+    if (res.status === 429) {
+      showToast('Too many reports! Saving locally. ⏳📍');
+      throw new Error('Rate limited');
+    }
+    
     const data = await res.json();
     if (data.success) {
       showToast(`Thank you! Status reported as ${status}. 🍻`);
@@ -701,7 +719,9 @@ async function submitStoreFeedback(status) {
     }
   } catch (err) {
     console.warn('API submission failed, falling back to LocalStorage caching:', err);
-    showToast(`Saved locally! Status reported as ${status}. 📍`);
+    if (err.message !== 'Rate limited') {
+      showToast(`Saved locally! Status reported as ${status}. 📍`);
+    }
   } finally {
     // 2. Always persist in LocalStorage for client-side local cache fallback
     try {
@@ -713,12 +733,15 @@ async function submitStoreFeedback(status) {
       console.error(e);
     }
     
-    // Enable buttons
-    if (elements.btnReportOpen) elements.btnReportOpen.disabled = false;
-    if (elements.btnReportClosed) elements.btnReportClosed.disabled = false;
-    
     // 3. Reload UI metrics
     await loadStoreFeedback(storeId);
+
+    // Re-enable buttons after 10 second cooldown
+    setTimeout(() => {
+      state.isFeedbackCooldown = false;
+      if (elements.btnReportOpen) elements.btnReportOpen.disabled = false;
+      if (elements.btnReportClosed) elements.btnReportClosed.disabled = false;
+    }, 10000);
   }
 }
 
@@ -1085,6 +1108,10 @@ async function fetchGooglePlacesStores(lat, lon, radius) {
   try {
     const url = `/api/places?lat=${lat}&lon=${lon}&radius=${radius}`;
     const response = await fetch(url);
+    if (response.status === 429) {
+      showToast('Whoa there! Too many location updates. Please wait a moment. ⏳');
+      throw new Error('Rate limited');
+    }
     if (!response.ok) {
       throw new Error(`Google API Proxy responded with status ${response.status}`);
     }
@@ -1252,8 +1279,8 @@ async function findNearestLiquorStore(lat, lon, force = false) {
   state.lastSearchCoords = { lat, lon };
   state.cachedStores = JSON.parse(JSON.stringify(state.stores));
   
-  // Hide refresh spinner
-  if (elements.btnRefreshTheka) {
+  // Hide refresh spinner (only if not on a strict cooldown)
+  if (elements.btnRefreshTheka && !state.isRefreshCooldown) {
     elements.btnRefreshTheka.classList.remove('spinning');
   }
 }
@@ -1824,7 +1851,18 @@ function init() {
   }
   if (elements.btnRefreshTheka) {
     elements.btnRefreshTheka.addEventListener('click', () => {
+      if (state.isRefreshCooldown) return;
+      
+      state.isRefreshCooldown = true;
+      elements.btnRefreshTheka.classList.add('spinning');
+      
       findNearestLiquorStore(state.userLocation.lat, state.userLocation.lon, true);
+      
+      // Keep spinning for at least 4 seconds to prevent user spamming
+      setTimeout(() => {
+        state.isRefreshCooldown = false;
+        elements.btnRefreshTheka.classList.remove('spinning');
+      }, 4000);
     });
   }
   if (elements.btnEmergencySos) {

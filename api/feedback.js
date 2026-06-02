@@ -9,6 +9,30 @@ let schemaInitialized = false;
 // Tiny in-memory database fallback for local/mock environments without DATABASE_URL
 const memoryStore = new Map();
 
+// Global cache to track request rates per IP in warm serverless containers
+const ipCache = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS = 15; // Maximum 15 requests per minute per IP for feedback
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || 'unknown-ip';
+}
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  if (!ipCache.has(ip)) {
+    ipCache.set(ip, []);
+  }
+  const timestamps = ipCache.get(ip).filter(time => now - time < RATE_LIMIT_WINDOW);
+  timestamps.push(now);
+  ipCache.set(ip, timestamps);
+  return timestamps.length > MAX_REQUESTS;
+}
+
 /**
  * Ensures that the required table exists and matches the deduplicated upsert schema.
  */
@@ -81,6 +105,17 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  // Apply IP-based Rate Limiting
+  const clientIp = getClientIp(req);
+  if (isRateLimited(clientIp)) {
+    console.warn(`Feedback Rate limit exceeded for IP: ${clientIp}`);
+    return res.status(429).json({
+      success: false,
+      error: 'Too Many Requests',
+      message: 'Rate limit exceeded. Please wait a minute before making more reports.'
+    });
   }
 
   const hasDb = !!process.env.DATABASE_URL;

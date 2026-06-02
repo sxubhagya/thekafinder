@@ -4,6 +4,33 @@
  * Keeps the Google Maps API key hidden from frontend users.
  */
 
+// Global cache to track request rates per IP in warm serverless containers
+const ipCache = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS = 20; // Maximum 20 requests per minute per IP
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || 'unknown-ip';
+}
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  if (!ipCache.has(ip)) {
+    ipCache.set(ip, []);
+  }
+  
+  // Filter timestamps to only keep those within the rate limit window
+  const timestamps = ipCache.get(ip).filter(time => now - time < RATE_LIMIT_WINDOW);
+  timestamps.push(now);
+  ipCache.set(ip, timestamps);
+  
+  return timestamps.length > MAX_REQUESTS;
+}
+
 export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -23,6 +50,16 @@ export default async function handler(req, res) {
   // Only allow GET requests
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method Not Allowed. Use GET.' });
+  }
+
+  // Apply IP-based Rate Limiting
+  const clientIp = getClientIp(req);
+  if (isRateLimited(clientIp)) {
+    console.warn(`Rate limit exceeded for IP: ${clientIp}`);
+    return res.status(429).json({
+      error: 'Too Many Requests',
+      message: 'Rate limit exceeded. Please wait a minute before making more requests.'
+    });
   }
 
   const { lat, lon, radius } = req.query;
