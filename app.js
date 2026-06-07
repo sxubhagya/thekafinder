@@ -1595,15 +1595,15 @@ async function showGreetingAndTransition(cityName) {
     requestAnimationFrame(animateFrame);
   });
   
-  // Pause brief moment to settle
-  await new Promise(resolve => setTimeout(resolve, 200));
-  
   // 3. Fade out all non-target cities
   items.forEach((item, idx) => {
     if (idx !== 4) {
       item.classList.add('hidden-non-target');
     }
   });
+  
+  // Play the beer pop sound when the selection settles
+  playBeerPopSound();
   
   // Pause to admire the target city
   await new Promise(resolve => setTimeout(resolve, 900));
