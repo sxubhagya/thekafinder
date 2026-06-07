@@ -1485,26 +1485,87 @@ async function resolveCityName(lat, lon) {
  * Renders the Apple-style transition overlay greeting the user in their resolved city.
  */
 async function showGreetingAndTransition(cityName) {
-  const greetingText = document.getElementById('greeting-text');
-  if (greetingText) {
-    greetingText.textContent = `hello ${cityName.toLowerCase()}`;
-  }
-  
   const greetingScreen = document.getElementById('greeting-screen');
-  if (greetingScreen) {
-    greetingScreen.classList.add('active');
+  const drumTrack = document.getElementById('city-drum-track');
+  
+  if (!greetingScreen || !drumTrack) {
+    // Fallback if elements are missing
+    elements.permissionScreen.classList.remove('active');
+    elements.compassScreen.classList.add('active');
+    return;
   }
   
-  // Hide permission screen immediately
+  // 1. Generate the city wheel track list
+  const cleanTarget = cityName.toLowerCase();
+  const ogCities = ['delhi', 'mumbai', 'new york', 'tokyo', 'bangalore', 'goa', 'chennai', 'patna', 'ahmedabad', 'sonipat', 'london', 'paris', 'sydney', 'berlin', 'dubai', 'singapore'];
+  
+  // Filter out target city from pool to prevent duplication
+  const pool = ogCities.filter(c => c !== cleanTarget);
+  
+  // Simple shuffle
+  const shuffled = pool.sort(() => 0.5 - Math.random());
+  
+  // Build 9-item symmetrical list with target at index 4 (5th position)
+  const list = [
+    shuffled[0],
+    shuffled[1],
+    shuffled[2],
+    shuffled[3],
+    cleanTarget,
+    shuffled[4],
+    shuffled[5],
+    shuffled[6],
+    shuffled[7]
+  ];
+  
+  // Generate list items in track
+  drumTrack.innerHTML = '';
+  drumTrack.style.transform = 'translateY(0px)'; // Reset scroll position
+  
+  const items = list.map((city, idx) => {
+    const el = document.createElement('div');
+    el.className = `city-item${idx === 0 ? ' active' : ''}`;
+    el.textContent = city;
+    drumTrack.appendChild(el);
+    return el;
+  });
+  
+  // 2. Reveal the greeting overlay
+  greetingScreen.classList.add('active');
   elements.permissionScreen.classList.remove('active');
   
-  // Brief delay showing the hello screen
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  // Brief delay before starting the scroll animation
+  await new Promise(resolve => setTimeout(resolve, 300));
   
-  // Start transition to compass screen
-  if (greetingScreen) {
-    greetingScreen.classList.remove('active');
-  }
+  // 3. Perform scroll to target city (index 4, 4 * 48px = 192px)
+  drumTrack.style.transform = 'translateY(-192px)';
+  
+  // Highlight target city during deceleration
+  setTimeout(() => {
+    items.forEach((item, idx) => {
+      if (idx === 4) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
+  }, 800);
+  
+  // Wait for scroll transition to complete (1.5s scroll duration)
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  
+  // 4. Fade out all non-target cities
+  items.forEach((item, idx) => {
+    if (idx !== 4) {
+      item.classList.add('hidden-non-target');
+    }
+  });
+  
+  // Pause to admire the target city
+  await new Promise(resolve => setTimeout(resolve, 800));
+  
+  // 5. Fade out entire greeting overlay to open compass screen
+  greetingScreen.classList.remove('active');
   elements.compassScreen.classList.add('active');
   
   // Final transition settle delay
