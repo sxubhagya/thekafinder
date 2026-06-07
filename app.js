@@ -1037,7 +1037,7 @@ function updateCompassDisplay() {
     if (elements.btnBookCab) {
       const storeName = state.nearestStore.name || 'Theka';
       const address = state.nearestStore.address || '';
-      elements.btnBookCab.href = `https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[latitude]=${state.nearestStore.lat}&dropoff[longitude]=${state.nearestStore.lon}&dropoff[nickname]=${encodeURIComponent(storeName)}&dropoff[formatted_address]=${encodeURIComponent(address)}`;
+      elements.btnBookCab.href = `https://m.uber.com/ul/?client_id=CschlSNhiPzFV_VMeToCbrthhALuYkjyD_Ew0GCT&action=setPickup&pickup=my_location&dropoff[latitude]=${state.nearestStore.lat}&dropoff[longitude]=${state.nearestStore.lon}&dropoff[nickname]=${encodeURIComponent(storeName)}&dropoff[formatted_address]=${encodeURIComponent(address)}`;
       elements.btnBookCab.classList.remove('disabled');
     }
     
