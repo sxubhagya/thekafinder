@@ -322,7 +322,6 @@ h1 {
   left: 0;
   width: 100%;
   height: 100%;
-  transition: transform 0.1s cubic-bezier(0.1, 0.8, 0.3, 1);
   will-change: transform;
 }
 
@@ -368,31 +367,34 @@ h1 {
   height: 100%;
   pointer-events: none;
   z-index: 38;
-  transition: transform 0.15s cubic-bezier(0.1, 0.8, 0.3, 1);
   will-change: transform;
 }
 
 .liquor-pointer {
   position: absolute;
-  top: 12px; /* Adjusted slightly up to fit larger bottle */
+  top: 8px;
   left: 50%;
   transform: translateX(-50%);
-  width: 44px;
-  height: 44px;
+  width: 72px;
+  height: 80px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), filter 0.2s ease;
+  transition: filter 0.2s ease;
 }
 
 .liquor-pointer.aligned {
-  transform: translateX(-50%) scale(1.1);
+  transform: translateX(-50%);
   filter: drop-shadow(0 0 14px rgba(40, 167, 69, 0.9)) !important;
 }
 
+.liquor-pointer.aligned .bottle-indicator {
+  filter: drop-shadow(0 0 10px rgba(40, 167, 69, 1)) drop-shadow(0 0 20px rgba(40, 167, 69, 0.8));
+}
+
 .bottle-indicator {
-  width: 34px;
-  height: 34px;
+  width: 52px;
+  height: 52px;
   filter: drop-shadow(0 0 6px rgba(255, 183, 3, 0.8));
   animation: bounceMini 2s infinite ease-in-out;
 }
@@ -411,13 +413,15 @@ h1 {
 
 .pulse-glow {
   position: absolute;
-  top: 6px;
-  width: 14px;
-  height: 14px;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--accent-orange);
   opacity: 0.5;
-  filter: blur(4px);
+  filter: blur(6px);
   animation: pulseLight 1.5s infinite ease-in-out;
   z-index: -1;
 }
@@ -1058,14 +1062,14 @@ select {
   }
 
   .liquor-pointer {
-    top: 12px;
-    width: 32px;
-    height: 32px;
+    top: 8px;
+    width: 60px;
+    height: 70px;
   }
 
   .bottle-indicator {
-    width: 22px;
-    height: 22px;
+    width: 44px;
+    height: 44px;
   }
   
   .heading-number-row {
