@@ -141,6 +141,7 @@ const elements = {
   directionInstructions: document.getElementById('direction-instructions'),
   btnAppleMaps: document.getElementById('btn-apple-maps'),
   btnGoogleMaps: document.getElementById('btn-google-maps'),
+  btnBookCab: document.getElementById('btn-book-cab'),
   thekaSourceBadge: document.getElementById('theka-source-badge'),
   btnRetryPermissions: document.getElementById('btn-retry-permissions'),
   btnToggleSimulatorDrawer: document.getElementById('btn-toggle-simulator-drawer'),
@@ -935,6 +936,7 @@ function updateCompassDisplay() {
     
     if (elements.btnAppleMaps) elements.btnAppleMaps.classList.add('disabled');
     if (elements.btnGoogleMaps) elements.btnGoogleMaps.classList.add('disabled');
+    if (elements.btnBookCab) elements.btnBookCab.classList.add('disabled');
     if (elements.thekaSourceBadge) elements.thekaSourceBadge.style.display = 'none';
     if (elements.thekaOpenStatus) elements.thekaOpenStatus.style.display = 'none';
     if (elements.feedbackSection) elements.feedbackSection.style.display = 'none';
@@ -1032,6 +1034,12 @@ function updateCompassDisplay() {
       elements.btnGoogleMaps.href = `https://www.google.com/maps/search/?api=1&query=${state.nearestStore.lat},${state.nearestStore.lon}`;
       elements.btnGoogleMaps.classList.remove('disabled');
     }
+    if (elements.btnBookCab) {
+      const storeName = state.nearestStore.name || 'Theka';
+      const address = state.nearestStore.address || '';
+      elements.btnBookCab.href = `https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[latitude]=${state.nearestStore.lat}&dropoff[longitude]=${state.nearestStore.lon}&dropoff[nickname]=${encodeURIComponent(storeName)}&dropoff[formatted_address]=${encodeURIComponent(address)}`;
+      elements.btnBookCab.classList.remove('disabled');
+    }
     
     // Update Source Badge
     if (elements.thekaSourceBadge) {
@@ -1077,6 +1085,7 @@ function updateCompassDisplay() {
     elements.metricSteps.textContent = '--';
     if (elements.btnAppleMaps) elements.btnAppleMaps.classList.add('disabled');
     if (elements.btnGoogleMaps) elements.btnGoogleMaps.classList.add('disabled');
+    if (elements.btnBookCab) elements.btnBookCab.classList.add('disabled');
     if (elements.thekaSourceBadge) elements.thekaSourceBadge.style.display = 'none';
     if (elements.thekaOpenStatus) elements.thekaOpenStatus.style.display = 'none';
     if (elements.feedbackSection) elements.feedbackSection.style.display = 'none';
