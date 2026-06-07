@@ -115,7 +115,8 @@ const state = {
   cachedStores: [],
   loadedFeedbackStoreId: null,
   isRefreshCooldown: false,
-  isFeedbackCooldown: false
+  isFeedbackCooldown: false,
+  isAligned: false
 };
 
 // --- DOM ELEMENTS ---
@@ -994,8 +995,16 @@ function updateCompassDisplay() {
     let directionText = '';
     const needlePointer = document.querySelector('.liquor-pointer');
     
-    // If aligned within 5 degrees, trigger haptic-like vibration pulse
+    // We enter aligned state at < 5 deg, and leave at >= 8 deg to prevent chattering/glitching
+    let isCurrentlyAligned = state.isAligned || false;
     if (relativeAngle < 5 || relativeAngle > 355) {
+      isCurrentlyAligned = true;
+    } else if (relativeAngle >= 8 && relativeAngle <= 352) {
+      isCurrentlyAligned = false;
+    }
+    state.isAligned = isCurrentlyAligned;
+
+    if (isCurrentlyAligned || distance <= 5) {
       directionText = 'Straight ahead! Go get it! 🍻';
       elements.arrowIndicator.style.color = '#28a745'; // Green
       triggerVibrationPulse(150); // Light haptic tick
@@ -1520,6 +1529,7 @@ async function showGreetingAndTransition(cityName) {
   
   // Generate list items in track
   drumTrack.innerHTML = '';
+  drumTrack.style.transition = 'none'; // Disable CSS transitions so JS can animate it at 60fps
   drumTrack.style.transform = 'translateY(0px)'; // Reset scroll position
   
   const items = list.map((city, idx) => {
@@ -1530,31 +1540,65 @@ async function showGreetingAndTransition(cityName) {
     return el;
   });
   
-  // 2. Reveal the greeting overlay
+  // Reveal the greeting overlay
   greetingScreen.classList.add('active');
   elements.permissionScreen.classList.remove('active');
   
   // Brief delay before starting the scroll animation
-  await new Promise(resolve => setTimeout(resolve, 300));
+  await new Promise(resolve => setTimeout(resolve, 350));
   
-  // 3. Perform scroll to target city (index 4, 4 * 48px = 192px)
-  drumTrack.style.transform = 'translateY(-192px)';
+  // 2. Perform smooth frame-by-frame JS animation with haptic ticks
+  const startY = 0;
+  const targetY = -192; // 4 * 48px
+  const duration = 2400; // 2.4 seconds (deliberate, slow, smooth deceleration)
+  const startTime = performance.now();
   
-  // Highlight target city during deceleration
-  setTimeout(() => {
-    items.forEach((item, idx) => {
-      if (idx === 4) {
-        item.classList.add('active');
-      } else {
-        item.classList.remove('active');
+  let lastTickedIndex = 0;
+  
+  await new Promise((resolve) => {
+    function animateFrame(now) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Quintic ease-out curve for ultra-soft, smooth deceleration towards stop
+      const easeOutQuint = 1 - Math.pow(1 - progress, 5);
+      const currentY = startY + (targetY - startY) * easeOutQuint;
+      
+      drumTrack.style.transform = `translateY(${currentY}px)`;
+      
+      // Calculate which city index is currently closest to center
+      const currentIndex = Math.floor(Math.abs(currentY) / 48 + 0.5);
+      
+      // Trigger a tiny haptic vibration on crossing item boundaries
+      if (currentIndex !== lastTickedIndex) {
+        lastTickedIndex = currentIndex;
+        if (navigator.vibrate) {
+          navigator.vibrate(8); // Ultra short tactile tick
+        }
+        
+        // Update active class dynamically
+        items.forEach((item, idx) => {
+          if (idx === currentIndex) {
+            item.classList.add('active');
+          } else {
+            item.classList.remove('active');
+          }
+        });
       }
-    });
-  }, 800);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateFrame);
+      } else {
+        resolve();
+      }
+    }
+    requestAnimationFrame(animateFrame);
+  });
   
-  // Wait for scroll transition to complete (1.5s scroll duration)
-  await new Promise(resolve => setTimeout(resolve, 1500));
+  // Pause brief moment to settle
+  await new Promise(resolve => setTimeout(resolve, 200));
   
-  // 4. Fade out all non-target cities
+  // 3. Fade out all non-target cities
   items.forEach((item, idx) => {
     if (idx !== 4) {
       item.classList.add('hidden-non-target');
@@ -1562,9 +1606,9 @@ async function showGreetingAndTransition(cityName) {
   });
   
   // Pause to admire the target city
-  await new Promise(resolve => setTimeout(resolve, 800));
+  await new Promise(resolve => setTimeout(resolve, 900));
   
-  // 5. Fade out entire greeting overlay to open compass screen
+  // 4. Fade out entire greeting overlay to open compass screen
   greetingScreen.classList.remove('active');
   elements.compassScreen.classList.add('active');
   

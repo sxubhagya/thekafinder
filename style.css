@@ -374,25 +374,25 @@ h1 {
 
 .liquor-pointer {
   position: absolute;
-  top: 15px; /* Offset inside the ring */
+  top: 12px; /* Adjusted slightly up to fit larger bottle */
   left: 50%;
   transform: translateX(-50%);
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.2s ease;
+  transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1), filter 0.2s ease;
 }
 
 .liquor-pointer.aligned {
-  transform: translateX(-50%) scale(1.18);
+  transform: translateX(-50%) scale(1.1);
   filter: drop-shadow(0 0 14px rgba(40, 167, 69, 0.9)) !important;
 }
 
 .bottle-indicator {
-  width: 26px;
-  height: 26px;
+  width: 34px;
+  height: 34px;
   filter: drop-shadow(0 0 6px rgba(255, 183, 3, 0.8));
   animation: bounceMini 2s infinite ease-in-out;
 }
@@ -1994,7 +1994,8 @@ body.admin .btn-action-secondary.admin-only {
   height: 48px; /* Height of exactly one city item line */
   overflow: hidden;
   position: relative;
-  width: 240px;
+  width: 300px; /* Increased from 240px to prevent clipping */
+  padding-left: 10px; /* Prevents first letter from clipping */
   display: flex;
   flex-direction: column;
 }
