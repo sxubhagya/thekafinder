@@ -10,7 +10,7 @@
   --glass-bg: rgba(28, 28, 30, 0.7);
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shadow: rgba(0, 0, 0, 0.5);
-  --font-family-main: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-family-main: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-family-mono: 'Share Tech Mono', monospace;
   --status-bar-height: 0px;
 }
@@ -1949,5 +1949,47 @@ body.admin .btn-action-secondary.admin-only {
 
 .btn-feedback-yes:active, .btn-feedback-no:active {
   transform: scale(0.95);
+}
+
+/* Greeting Overlay Screen */
+.greeting-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #000000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.greeting-screen.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.greeting-content {
+  text-align: center;
+}
+
+.greeting-text {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: 200; /* Apple-style thin typography */
+  font-size: 38px;
+  letter-spacing: -0.5px;
+  color: #ffffff;
+  opacity: 0;
+  transform: scale(0.96) translateY(8px);
+  transition: opacity 0.7s cubic-bezier(0.25, 1, 0.5, 1), transform 0.7s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.greeting-screen.active .greeting-text {
+  opacity: 0.9;
+  transform: scale(1) translateY(0);
 }
 

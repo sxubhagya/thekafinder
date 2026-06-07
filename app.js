@@ -122,6 +122,7 @@ const state = {
 const elements = {
   permissionScreen: document.getElementById('permission-screen'),
   compassScreen: document.getElementById('compass-screen'),
+  greetingScreen: document.getElementById('greeting-screen'),
   btnRequestAccess: document.getElementById('btn-request-access'),
   btnMockMode: document.getElementById('btn-mock-mode'),
   headingVal: document.getElementById('heading-val'),
@@ -1432,6 +1433,85 @@ function updateStatus(message, isPulsing = false) {
 // --- HARDWARE SENSORS & PERMISSIONS ---
 
 /**
+ * Resolves a city name offline using a local coordinate checklist.
+ */
+function getLocalCityName(lat, lon) {
+  const cities = [
+    { name: 'Delhi', lat: 28.6304, lon: 77.2177 },
+    { name: 'Bengaluru', lat: 12.9719, lon: 77.6412 },
+    { name: 'Mumbai', lat: 19.0596, lon: 72.8295 },
+    { name: 'Goa', lat: 15.5494, lon: 73.7535 },
+    { name: 'Patna', lat: 25.5941, lon: 85.1376 },
+    { name: 'Ahmedabad', lat: 23.0225, lon: 72.5714 },
+    { name: 'Chennai', lat: 13.0827, lon: 80.2707 },
+    { name: 'Tokyo', lat: 35.6762, lon: 139.6503 },
+    { name: 'New York', lat: 40.7128, lon: -74.0060 },
+    { name: 'Sonipat', lat: 28.9845, lon: 77.0146 }
+  ];
+  
+  for (const city of cities) {
+    const dist = haversineDistance(lat, lon, city.lat, city.lon);
+    if (dist < 50000) { // Within 50km
+      return city.name;
+    }
+  }
+  return null;
+}
+
+/**
+ * Resolves the city name, falling back to a quick reverse geocoding lookup if not local.
+ */
+async function resolveCityName(lat, lon) {
+  const local = getLocalCityName(lat, lon);
+  if (local) return local;
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 1200);
+  
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error('OSM error');
+    const data = await res.json();
+    const addr = data.address;
+    return addr.city || addr.town || addr.suburb || addr.city_district || addr.state || 'Your City';
+  } catch (e) {
+    console.warn('Reverse geocode failed or timed out, returning fallback:', e);
+    return 'Your City';
+  }
+}
+
+/**
+ * Renders the Apple-style transition overlay greeting the user in their resolved city.
+ */
+async function showGreetingAndTransition(cityName) {
+  const greetingText = document.getElementById('greeting-text');
+  if (greetingText) {
+    greetingText.textContent = `hello ${cityName.toLowerCase()}`;
+  }
+  
+  const greetingScreen = document.getElementById('greeting-screen');
+  if (greetingScreen) {
+    greetingScreen.classList.add('active');
+  }
+  
+  // Hide permission screen immediately
+  elements.permissionScreen.classList.remove('active');
+  
+  // Brief delay showing the hello screen
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Start transition to compass screen
+  if (greetingScreen) {
+    greetingScreen.classList.remove('active');
+  }
+  elements.compassScreen.classList.add('active');
+  
+  // Final transition settle delay
+  await new Promise(resolve => setTimeout(resolve, 600));
+}
+
+/**
  * Entry point to request device Geolocation and Orientation.
  */
 async function requestDeviceAccess() {
@@ -1474,16 +1554,23 @@ async function requestDeviceAccess() {
   const passedPermissionCheck = isAdminMode ? (locationGranted || orientationGranted) : (locationGranted && orientationGranted);
   
   if (passedPermissionCheck) {
-    elements.permissionScreen.classList.remove('active');
-    elements.compassScreen.classList.add('active');
-    
-    // Start watch listeners if granted
+    let cityName = 'Your City';
+    if (locationGranted) {
+      cityName = await resolveCityName(state.userLocation.lat, state.userLocation.lon);
+    }
+
+    // Start watch listeners immediately in the background so search is pre-fetched
     if (locationGranted) {
       startLocationWatching();
     }
     if (orientationGranted) {
       startOrientationListening();
-    } else {
+    }
+    
+    // Play greeting transition overlay
+    await showGreetingAndTransition(cityName);
+    
+    if (!orientationGranted) {
       // If location is OK but orientation is blocked (desktop/refused),
       // auto-enable mock heading slider to allow testing.
       enableSimulatorDrawer(true);
@@ -1641,12 +1728,10 @@ function triggerMockModeFallback() {
   // Load CP Delhi as default mock location
   loadMockLocation('connaught-place');
   
-  // Show app layout and pop up the simulator drawer immediately
-  elements.permissionScreen.classList.remove('active');
-  elements.compassScreen.classList.add('active');
-  
-  enableSimulatorDrawer(true);
-  updateCompassDisplay();
+  // Trigger transition
+  showGreetingAndTransition('Delhi').then(() => {
+    enableSimulatorDrawer(true);
+  });
 }
 
 /**
