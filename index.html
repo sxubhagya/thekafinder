@@ -117,6 +117,15 @@
 
     <!-- Screen 2: Main Compass Interface -->
     <section id="compass-screen" class="screen">
+      <!-- Info / FAQ Button -->
+      <button id="btn-info-faq" class="btn-info-faq" title="FAQ / Guide">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </button>
+
       <!-- Top Readout -->
       <header class="compass-header">
         <div class="heading-number-row">
@@ -497,6 +506,69 @@
           </a>
         </div>
         <p class="intl-helper-text">Links redirect to my Ko-fi page (supports Credit Cards, Apple Pay, Google Pay, PayPal)</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAQ Modal Overlay -->
+  <div id="faq-modal" class="modal-overlay hidden">
+    <div class="glass-container modal-content faq-modal-content">
+      <button id="btn-close-faq-modal" class="btn-close-modal">&times;</button>
+      <div class="faq-modal-header">
+        <span class="faq-modal-emoji">ℹ️</span>
+        <h3>Theka Finder FAQ</h3>
+        <p class="subtitle">Answering life's most pressing questions. Dialect tuned to local frequencies. 🍻</p>
+      </div>
+
+      <div class="faq-content-scroll">
+        <div class="faq-item">
+          <h4>🤔 What is a "Theka"?</h4>
+          <p>
+            Listen up, rookie. A <strong>Theka</strong> (pronounced <em>thay-kaa</em>) is a government-licensed retail shop in India where spirits are sold. Forget cozy aisles and wine-tasting notes. In a real theka, speed is everything. You slide your money through a tiny metal grille, scream your order, get a bottle wrapped in a black polythene bag, and make way for the next guy. Simple, efficient, beautiful.
+          </p>
+        </div>
+
+        <div class="faq-item">
+          <h4>🧭 What does the compass do?</h4>
+          <p>
+            It is a literal <strong>Daaru Direction System (DDS)</strong>. Instead of typing "liquor shop near me" on maps and scrolling through outdated listings, this compass points a giant beer bottle straight at the nearest checked theka. Spin around—the needle tracks in real-time. Just follow the bottle!
+          </p>
+        </div>
+
+        <div class="faq-item">
+          <h4>🏃 What is "Steps to Beer"?</h4>
+          <p>
+            Distance in meters is fine, but how many physical steps stand between you and your cold beverage? We calculate this using an average human stride (~0.76 meters). Think of it as your cardio motivation index.
+          </p>
+        </div>
+
+        <div class="faq-item">
+          <h4>🚖 What's the Uber button for?</h4>
+          <p>
+            Drinking and driving is an absolute <strong>NO-GO</strong>. Absolutely no <em>car-o-bar</em> (tailgate drinking) if you're behind the wheel. If the nearest theka is too far to walk, hit the "Book Cab" button to load Uber with your target theka's coordinates pre-filled. Arrive like a VIP, return safely.
+          </p>
+        </div>
+
+        <div class="faq-item">
+          <h4>❌ Why is the compass spinning like crazy?</h4>
+          <p>
+            Ah, you've hit a <strong>Dry Zone</strong>. If you are in Gujarat, Bihar, Nagaland, Mizoram, or Lakshadweep (or if it's a national Dry Day), legal thekas are non-existent. The compass needle spins indefinitely in grief. Put the glass down and hydrate, boss.
+          </p>
+        </div>
+
+        <div class="faq-item">
+          <h4>👍/👎 Why report Open/Closed?</h4>
+          <p>
+            In India, theka timings are unpredictable. They might shut down for a local election, a festival, or because the owner wanted to go home early. The crowdsourced voting system calculates a real-time consensus so you don't walk all the way just to find a locked shutter. Help the gang out—cast your vote!
+          </p>
+        </div>
+
+        <div class="faq-item">
+          <h4>🚨 What is the SOS button?</h4>
+          <p>
+            The <strong>Emergency Beer SOS</strong>. If you are stranded or desperately need your friends to bring backup, hitting the SOS button opens WhatsApp with a prefilled, witty message containing your exact GPS coordinates and a search link. Help is on the way!
+          </p>
+        </div>
       </div>
     </div>
   </div>

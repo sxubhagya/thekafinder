@@ -185,7 +185,12 @@ const elements = {
   feedbackSection: document.getElementById('crowdsourced-feedback-section'),
   feedbackMetricsText: document.getElementById('feedback-metrics-text'),
   btnReportOpen: document.getElementById('btn-report-open'),
-  btnReportClosed: document.getElementById('btn-report-closed')
+  btnReportClosed: document.getElementById('btn-report-closed'),
+  
+  // FAQ Info Modal Elements
+  btnInfoFaq: document.getElementById('btn-info-faq'),
+  faqModal: document.getElementById('faq-modal'),
+  btnCloseFaqModal: document.getElementById('btn-close-faq-modal')
 };
 
 // --- CONFETTI & SOUND SYSTEMS ---
@@ -1447,6 +1452,10 @@ function updateStatus(message, isPulsing = false) {
 function getLocalCityName(lat, lon) {
   const cities = [
     { name: 'Delhi', lat: 28.6304, lon: 77.2177 },
+    { name: 'Gurugram', lat: 28.4595, lon: 77.0266 },
+    { name: 'Noida', lat: 28.5355, lon: 77.3910 },
+    { name: 'Faridabad', lat: 28.4089, lon: 77.3178 },
+    { name: 'Ghaziabad', lat: 28.6692, lon: 77.4538 },
     { name: 'Bengaluru', lat: 12.9719, lon: 77.6412 },
     { name: 'Mumbai', lat: 19.0596, lon: 72.8295 },
     { name: 'Goa', lat: 15.5494, lon: 73.7535 },
@@ -1458,11 +1467,20 @@ function getLocalCityName(lat, lon) {
     { name: 'Sonipat', lat: 28.9845, lon: 77.0146 }
   ];
   
+  let closestCity = null;
+  let minDistance = Infinity;
+  
   for (const city of cities) {
     const dist = haversineDistance(lat, lon, city.lat, city.lon);
-    if (dist < 50000) { // Within 50km
-      return city.name;
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestCity = city;
     }
+  }
+  
+  // Set threshold to 20km to distinguish neighboring NCR cities
+  if (closestCity && minDistance < 20000) {
+    return closestCity.name;
   }
   return null;
 }
@@ -2091,6 +2109,28 @@ function init() {
         elements.beerModal.classList.add('hidden');
       }
     });
+    
+    // FAQ Modal handlers
+    if (elements.btnInfoFaq && elements.faqModal) {
+      elements.btnInfoFaq.addEventListener('click', () => {
+        elements.faqModal.classList.remove('hidden');
+        unlockAudio(); // Unlock audio on click gesture
+      });
+    }
+    
+    if (elements.btnCloseFaqModal && elements.faqModal) {
+      elements.btnCloseFaqModal.addEventListener('click', () => {
+        elements.faqModal.classList.add('hidden');
+      });
+    }
+    
+    if (elements.faqModal) {
+      elements.faqModal.addEventListener('click', (e) => {
+        if (e.target === elements.faqModal) {
+          elements.faqModal.classList.add('hidden');
+        }
+      });
+    }
     
     // Copy UPI ID functionality
     if (elements.btnCopyUpi && elements.upiAddress) {
