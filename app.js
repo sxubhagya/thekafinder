@@ -517,37 +517,37 @@ function showToast(message) {
   }, 3500);
 }
 
-/**
- * Triggers Web Share API or copies a witty description to clipboard.
- */
 function shareTheka() {
   let message = '';
+  const appUrl = 'https://thekafinder.vercel.app';
+  const cta = '— Sent via thekafinder.vercel.app 🍻';
+  
   if (state.isDryState) {
     if (state.nearestStore && state.nearestStore.id === 'oasis') {
       const dist = state.nearestStore.distance;
       const distText = dist >= 1000 ? `${(dist / 1000).toFixed(0)} km` : `${Math.round(dist)} m`;
-      message = `Prohibition alert! 🚨 Stuck in a dry state, but my compass points directly to the closest wet Border Oasis (${state.nearestStore.name.replace('Border Oasis: ', '')}) which is ${distText} away! Join the road trip: https://thekafinder.vercel.app`;
+      message = `Prohibition alert! 🚨 Stuck in a dry state, but my compass points directly to the closest wet Border Oasis (${state.nearestStore.name.replace('Border Oasis: ', '')}) which is ${distText} away! Join the road trip!`;
     } else {
-      message = `Compass is spinning in grief... 🚨 Stuck in a dry state! Save me: https://thekafinder.vercel.app`;
+      message = `Compass is spinning in grief... 🚨 Stuck in a dry state! Save me!`;
     }
   } else if (state.isDryZone) {
-    message = `Desert alert! 🌵 No liquor stores found within 15km. Keep looking with me: https://thekafinder.vercel.app`;
+    message = `Desert alert! 🌵 No liquor stores found within 15km. Keep looking with me!`;
   } else if (state.nearestStore) {
     const dist = state.nearestStore.distance;
     const distText = dist >= 1000 ? `${(dist / 1000).toFixed(1)} km` : `${Math.round(dist)} meters`;
-    message = `Hunting for liquid gold! 🍻 Compass says nearest theka (${state.nearestStore.name}) is ${distText} away. Lock on bearing: https://thekafinder.vercel.app`;
+    message = `Hunting for liquid gold! 🍻 Compass says nearest theka (${state.nearestStore.name}) is ${distText} away. Lock on bearing!`;
   } else {
-    message = `Finding nearest liquid gold! Connect to my compass: https://thekafinder.vercel.app`;
+    message = `Finding nearest liquid gold! Connect to my compass!`;
   }
   
   if (navigator.share) {
     navigator.share({
       title: 'Theka Finder',
-      text: message,
-      url: 'https://thekafinder.vercel.app'
+      text: `${message} ${cta}`,
+      url: appUrl
     }).catch(err => console.log('Share canceled', err));
   } else {
-    navigator.clipboard.writeText(message)
+    navigator.clipboard.writeText(`${message}\n\nLink: ${appUrl}\n${cta}`)
       .then(() => {
         showToast('Invite copied to clipboard! Send to your gang! 🍻');
       })
@@ -567,19 +567,21 @@ function triggerEmergencySOS() {
   }
   
   const mapLink = `https://www.google.com/maps/search/?api=1&query=${state.userLocation.lat},${state.userLocation.lon}`;
+  const appUrl = 'https://thekafinder.vercel.app';
+  const cta = `— Sent thanks to ${appUrl} 🍻`;
   let message = '';
   
   if (state.isDryState) {
     const dryName = state.dryStateName || 'Dry State';
-    message = `Help! I'm currently stranded in a dry state/zone (${dryName}) with a spinning compass needle and no beer. Save me or send a cooler to my location: ${mapLink} 🌵💧`;
+    message = `Help! I'm currently stranded in a dry state/zone (${dryName}) with a spinning compass needle and no beer. Save me or send a cooler to my location: ${mapLink} 🌵💧\n\n${cta}`;
   } else if (state.isDryZone) {
-    message = `Desert alert! 🌵 No liquor stores found within 15km. Send backup or cold water to my current coordinates: ${mapLink} 💧`;
+    message = `Desert alert! 🌵 No liquor stores found within 15km. Send backup or cold water to my current coordinates: ${mapLink} 💧\n\n${cta}`;
   } else if (state.nearestStore) {
     const dist = state.nearestStore.distance;
     const distText = dist >= 1000 ? `${(dist / 1000).toFixed(1)}km` : `${Math.round(dist)}m`;
-    message = `Hey! I'm on a mission to grab a cold one at ${state.nearestStore.name} (~${distText} away). If I'm not back in 30 mins, send search parties to my last known location: ${mapLink} 🍻🚨`;
+    message = `Hey! I'm on a mission to grab a cold one at ${state.nearestStore.name} (~${distText} away). If I'm not back in 30 mins, send search parties to my last known location: ${mapLink} 🍻🚨\n\n${cta}`;
   } else {
-    message = `Hey, I'm heading out to find some cold beers! Tracking my path here: ${mapLink} 🍻`;
+    message = `Hey, I'm heading out to find some cold beers! Tracking my path here: ${mapLink} 🍻\n\n${cta}`;
   }
   
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
