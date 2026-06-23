@@ -6,8 +6,23 @@
   <title>Theka Finder — Nearest Liquor Store Compass</title>
   
   <!-- SEO Meta Tags -->
-  <meta name="description" content="A premium iOS compass replica that points in the direction of the nearest liquor store (theka) and tracks your steps in real-time.">
+  <meta name="description" content="Because who said alcohol doesn't take you places? Locate the nearest liquor store (theka) in real-time with our premium compass app.">
   <meta name="theme-color" content="#000000">
+  <link rel="canonical" href="https://thekafinder.vercel.app/">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://thekafinder.vercel.app/">
+  <meta property="og:title" content="Theka Finder — Nearest Liquor Store Compass">
+  <meta property="og:description" content="Because who said alcohol doesn't take you places? Locate the nearest liquor store (theka) in real-time with our premium compass app.">
+  <meta property="og:image" content="https://thekafinder.vercel.app/logo.png">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:url" content="https://thekafinder.vercel.app/">
+  <meta name="twitter:title" content="Theka Finder — Nearest Liquor Store Compass">
+  <meta name="twitter:description" content="Because who said alcohol doesn't take you places? Locate the nearest liquor store (theka) in real-time with our premium compass app.">
+  <meta name="twitter:image" content="https://thekafinder.vercel.app/logo.png">
   
   <!-- iOS Native App Emulation Meta Tags -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -23,6 +38,68 @@
   
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍺</text></svg>">
+
+  <!-- Structured Schema Data (SEO & GEO) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "@id": "https://thekafinder.vercel.app/#website",
+        "name": "Theka Finder",
+        "url": "https://thekafinder.vercel.app/",
+        "description": "Because who said alcohol doesn't take you places? Locate the nearest liquor store (theka) in real-time with our premium iOS-style compass WebApp.",
+        "applicationCategory": "NavigationApplication",
+        "operatingSystem": "All",
+        "browserRequirements": "Requires HTML5, Geolocation API, and DeviceOrientation API",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://thekafinder.vercel.app/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is a Theka?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A Theka is a government-licensed retail shop in India where spirits and liquor are sold. Unlike boutique liquor outlets, it operates as a fast-paced window counter."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does the Theka Finder compass work?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "It acts as a Daaru Direction System. By utilizing your device's high-accuracy GPS coordinates and orientation magnetometer, it points a virtual beer bottle directly towards the nearest liquor store in real-time."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why is the compass needle spinning?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The compass spins continuously if you enter a geoprohibited Dry Zone (like Bihar, Gujarat, Nagaland, Mizoram, or Lakshadweep) or if it's a dry day, indicating that no legal outlets are available nearby."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What does the Uber button do?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "To prevent drinking and driving, the Book Cab button launches the Uber app with your pickup set to your location and destination pre-filled with the nearest liquor store's coordinates."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
 </head>
 <body>
 
