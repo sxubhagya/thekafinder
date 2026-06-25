@@ -162,6 +162,10 @@
           <button id="btn-mock-mode" class="btn-secondary admin-only">
             Try Mock Simulator (Desktop)
           </button>
+          
+          <p class="welcome-report-link-container">
+            <a href="#" id="btn-report-issue-welcome" class="report-issue-trigger report-issue-link">Report an Issue</a>
+          </p>
         </div>
 
         <!-- State 2: Permission Denied/Instruction Screen -->
@@ -357,7 +361,7 @@
           <div class="dev-credits-container">
             <div class="dev-info">
               <span class="made-with-love">Made with <span>♥</span> by <a href="https://github.com/sxubhagya" target="_blank" class="dev-name">Soubhagya</a></span>
-              <span class="location-tagline">from Sonipat to the world</span>
+              <span class="location-tagline">from Sonipat to the world • <a href="#" id="btn-report-issue-trigger" class="report-issue-trigger report-issue-link">Report an Issue</a></span>
             </div>
             
             <div class="dev-social-actions">
@@ -647,6 +651,49 @@
           </p>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Report an Issue Modal Overlay -->
+  <div id="issue-modal" class="modal-overlay hidden">
+    <div class="glass-container modal-content issue-modal-content">
+      <button id="btn-close-issue-modal" class="btn-close-modal">&times;</button>
+      <div class="issue-modal-header">
+        <span class="issue-modal-emoji">🛠️</span>
+        <h3>Report an Issue</h3>
+        <p class="subtitle">Something not working? Let us know and we'll fix it. 🍻</p>
+      </div>
+
+      <form id="issue-form" class="issue-form">
+        <!-- Location details autofilled -->
+        <div class="form-group">
+          <label>Detected Location:</label>
+          <div class="location-autofill-box">
+            <span id="issue-detected-location">Resolving location... 🧭</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="issue-type">What is the problem?</label>
+          <select id="issue-type" required>
+            <option value="" disabled selected>Select an issue...</option>
+            <option value="Not picking up stores around me">Not picking up stores around me 🌵</option>
+            <option value="Location / Compass not updating">Location / Compass not updating 🧭</option>
+            <option value="Uber integration not working">Uber integration not working 🚖</option>
+            <option value="Incorrect store details or timings">Incorrect store details or timings 📝</option>
+            <option value="Something else is broken">Something else is broken 💥</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="issue-description">Details / Description:</label>
+          <textarea id="issue-description" placeholder="Please describe what's happening..." required></textarea>
+        </div>
+
+        <button type="submit" id="btn-submit-issue" class="btn-primary btn-submit-issue">
+          <span>Submit Report</span>
+        </button>
+      </form>
     </div>
   </div>
 

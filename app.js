@@ -116,7 +116,9 @@ const state = {
   loadedFeedbackStoreId: null,
   isRefreshCooldown: false,
   isFeedbackCooldown: false,
-  isAligned: false
+  isAligned: false,
+  resolvedCity: '',
+  resolvedCountry: ''
 };
 
 // --- DOM ELEMENTS ---
@@ -190,7 +192,17 @@ const elements = {
   // FAQ Info Modal Elements
   btnInfoFaq: document.getElementById('btn-info-faq'),
   faqModal: document.getElementById('faq-modal'),
-  btnCloseFaqModal: document.getElementById('btn-close-faq-modal')
+  btnCloseFaqModal: document.getElementById('btn-close-faq-modal'),
+  
+  // Issue Report Modal Elements
+  btnReportIssueWelcome: document.getElementById('btn-report-issue-welcome'),
+  btnReportIssueTrigger: document.getElementById('btn-report-issue-trigger'),
+  issueModal: document.getElementById('issue-modal'),
+  btnCloseIssueModal: document.getElementById('btn-close-issue-modal'),
+  issueForm: document.getElementById('issue-form'),
+  issueDetectedLocation: document.getElementById('issue-detected-location'),
+  issueType: document.getElementById('issue-type'),
+  issueDescription: document.getElementById('issue-description')
 };
 
 // --- CONFETTI & SOUND SYSTEMS ---
@@ -1488,26 +1500,43 @@ function getLocalCityName(lat, lon) {
 }
 
 /**
- * Resolves the city name, falling back to a quick reverse geocoding lookup if not local.
+ * Resolves both city and country, caching them in state for UI display and issue reports.
  */
-async function resolveCityName(lat, lon) {
-  const local = getLocalCityName(lat, lon);
-  if (local) return local;
-  
+async function resolveCityAndCountry(lat, lon) {
+  // Check if we can resolve offline first
+  const localCity = getLocalCityName(lat, lon);
+  if (localCity) {
+    state.resolvedCity = localCity;
+    // Map offline cities to country (most are India except Tokyo and New York)
+    if (localCity === 'Tokyo') {
+      state.resolvedCountry = 'Japan';
+    } else if (localCity === 'New York') {
+      state.resolvedCountry = 'United States';
+    } else {
+      state.resolvedCountry = 'India';
+    }
+    return { city: state.resolvedCity, country: state.resolvedCountry };
+  }
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1200);
-  
+  const timeoutId = setTimeout(() => controller.abort(), 1500);
+
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`, { signal: controller.signal });
     clearTimeout(timeoutId);
     if (!res.ok) throw new Error('OSM error');
     const data = await res.json();
     const addr = data.address;
-    return addr.city || addr.town || addr.suburb || addr.city_district || addr.state || 'Your City';
+    
+    state.resolvedCity = addr.city || addr.town || addr.village || addr.suburb || addr.city_district || addr.state || 'Unknown City';
+    state.resolvedCountry = addr.country || 'Unknown Country';
   } catch (e) {
-    console.warn('Reverse geocode failed or timed out, returning fallback:', e);
-    return 'Your City';
+    console.warn('Reverse geocode failed or timed out:', e);
+    state.resolvedCity = 'Unknown City';
+    state.resolvedCountry = 'Unknown Country';
   }
+  
+  return { city: state.resolvedCity, country: state.resolvedCountry };
 }
 
 /**
@@ -1681,7 +1710,8 @@ async function requestDeviceAccess() {
   if (passedPermissionCheck) {
     let cityName = 'Your City';
     if (locationGranted) {
-      cityName = await resolveCityName(state.userLocation.lat, state.userLocation.lon);
+      const geo = await resolveCityAndCountry(state.userLocation.lat, state.userLocation.lon);
+      cityName = geo.city;
     }
 
     // Start watch listeners immediately in the background so search is pre-fetched
@@ -1871,6 +1901,9 @@ function loadMockLocation(key) {
   state.userLocation.lat = region.lat;
   state.userLocation.lon = region.lon;
   state.stores = JSON.parse(JSON.stringify(region.shops)); // Deep copy
+  
+  // Resolve city & country in the background for mock
+  resolveCityAndCountry(region.lat, region.lon);
   
   sortAndSetNearest();
   
@@ -2131,6 +2164,97 @@ function init() {
         if (e.target === elements.faqModal) {
           elements.faqModal.classList.add('hidden');
         }
+      });
+    }
+
+    // --- ISSUE REPORT EVENT HANDLERS ---
+    const openIssueModal = (e) => {
+      if (e) e.preventDefault();
+      if (elements.issueModal) {
+        elements.issueModal.classList.remove('hidden');
+        unlockAudio(); // Unlock audio on click gesture
+        
+        // Prefill detected location field
+        if (elements.issueDetectedLocation) {
+          if (state.userLocation.lat && state.userLocation.lon && (!state.resolvedCity || state.resolvedCity === 'Unknown City')) {
+            elements.issueDetectedLocation.textContent = 'Resolving location... 🧭';
+            resolveCityAndCountry(state.userLocation.lat, state.userLocation.lon).then(geo => {
+              elements.issueDetectedLocation.textContent = `${geo.city}, ${geo.country}`;
+            });
+          } else if (state.resolvedCity) {
+            elements.issueDetectedLocation.textContent = `${state.resolvedCity}, ${state.resolvedCountry}`;
+          } else {
+            elements.issueDetectedLocation.textContent = 'Location access not granted yet 📍';
+          }
+        }
+      }
+    };
+
+    if (elements.btnReportIssueWelcome) {
+      elements.btnReportIssueWelcome.addEventListener('click', openIssueModal);
+    }
+    if (elements.btnReportIssueTrigger) {
+      elements.btnReportIssueTrigger.addEventListener('click', openIssueModal);
+    }
+    if (elements.btnCloseIssueModal && elements.issueModal) {
+      elements.btnCloseIssueModal.addEventListener('click', () => {
+        elements.issueModal.classList.add('hidden');
+      });
+    }
+    if (elements.issueModal) {
+      elements.issueModal.addEventListener('click', (e) => {
+        if (e.target === elements.issueModal) {
+          elements.issueModal.classList.add('hidden');
+        }
+      });
+    }
+
+    if (elements.issueForm) {
+      elements.issueForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        
+        const btnSubmit = document.getElementById('btn-submit-issue');
+        if (btnSubmit) {
+          btnSubmit.disabled = true;
+          btnSubmit.querySelector('span').textContent = 'Reporting...';
+        }
+        
+        const payload = {
+          city: state.resolvedCity || 'Unknown City',
+          country: state.resolvedCountry || 'Unknown Country',
+          lat: state.userLocation.lat || null,
+          lon: state.userLocation.lon || null,
+          issueType: elements.issueType.value,
+          description: elements.issueDescription.value
+        };
+        
+        fetch('/api/report-issue', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        })
+        .then(async res => {
+          const data = await res.json();
+          if (res.ok) {
+            showToast('Issue reported successfully! Thank you. 🍻');
+            if (elements.issueModal) elements.issueModal.classList.add('hidden');
+            elements.issueForm.reset();
+          } else {
+            showToast(data.error || 'Failed to submit report. Please try again.');
+          }
+        })
+        .catch(err => {
+          console.error('Submit report error:', err);
+          showToast('Network error. Please try again.');
+        })
+        .finally(() => {
+          if (btnSubmit) {
+            btnSubmit.disabled = false;
+            btnSubmit.querySelector('span').textContent = 'Submit Report';
+          }
+        });
       });
     }
     

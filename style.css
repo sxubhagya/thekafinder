@@ -2161,3 +2161,117 @@ body.admin .btn-action-secondary.admin-only {
   font-style: normal;
 }
 
+/* --- ISSUE REPORT FORM & MODAL --- */
+.issue-modal-content {
+  max-width: 440px !important;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  text-align: left !important;
+  align-items: stretch !important;
+}
+
+.issue-modal-header {
+  text-align: center;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.issue-modal-emoji {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.issue-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.location-autofill-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+}
+
+.issue-form select,
+.issue-form textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  color: #ffffff;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.issue-form select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: calc(100% - 14px) center;
+  padding-right: 36px;
+}
+
+.issue-form select:focus,
+.issue-form textarea:focus {
+  border-color: rgba(255, 183, 3, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.issue-form select option {
+  background: #121212;
+  color: #ffffff;
+}
+
+.issue-form textarea {
+  height: 100px;
+  resize: none;
+}
+
+.btn-submit-issue {
+  margin-top: 8px;
+  height: 44px;
+}
+
+.welcome-report-link-container {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.report-issue-link {
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-decoration: underline;
+  opacity: 0.8;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.report-issue-link:hover {
+  opacity: 1;
+  color: var(--accent-amber);
+}
+
