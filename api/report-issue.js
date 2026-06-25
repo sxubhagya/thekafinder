@@ -129,7 +129,7 @@ export default async function handler(req, res) {
 
   if (process.env.RESEND_API_KEY) {
     try {
-      const recipient = process.env.NOTIFICATION_EMAIL || 'work.soubhagya@gmail.com';
+      const recipient = process.env.NOTIFICATION_EMAIL || 'soubhagya.daspattanayak_ug25@ashoka.edu.in';
       const sender = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
       
       const emailPayload = {
