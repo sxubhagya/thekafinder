@@ -202,7 +202,10 @@ const elements = {
   issueForm: document.getElementById('issue-form'),
   issueDetectedLocation: document.getElementById('issue-detected-location'),
   issueType: document.getElementById('issue-type'),
-  issueDescription: document.getElementById('issue-description')
+  issueDescription: document.getElementById('issue-description'),
+  
+  // WhatsApp Bot CTAs
+  btnWhatsappBot: document.getElementById('btn-whatsapp-bot')
 };
 
 // --- CONFETTI & SOUND SYSTEMS ---
@@ -2022,6 +2025,12 @@ function init() {
       requestDeviceAccess();
     });
   }
+  
+  // Dynamic WhatsApp Bot Links
+  const waBotNumber = window.THEKA_WHATSAPP_NUMBER || '919058309001';
+  document.querySelectorAll('.btn-whatsapp, .btn-whatsapp-sm, .whatsapp-credit-link').forEach(link => {
+    link.href = `https://wa.me/${waBotNumber}?text=yo%20where's%20the%20nearest%20theka`;
+  });
   
   // 2. Drawer actions
   elements.btnToggleSimulatorDrawer.addEventListener('click', () => enableSimulatorDrawer(true));
