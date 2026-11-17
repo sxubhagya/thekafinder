@@ -231,6 +231,7 @@ const elements = {
   oasisName: document.getElementById('oasis-name'),
   oasisMeta: document.getElementById('oasis-meta'),
   detailHours: document.getElementById('detail-hours'),
+  detailAddress: document.getElementById('detail-address'),
   detailHoursSub: document.getElementById('detail-hours-sub'),
   arrivedSub: document.getElementById('arrived-sub'),
   btnArrivedBeer: document.getElementById('btn-arrived-beer'),
@@ -1143,6 +1144,7 @@ function updateCompassDisplay() {
     elements.metricSteps.textContent = steps.toLocaleString();
     elements.thekaName.textContent = store.name;
     elements.thekaAddress.textContent = store.address || 'Address unknown';
+    elements.detailAddress.textContent = store.address || 'Address unknown';
 
     // Mode, core text and haptics
     let directionText;

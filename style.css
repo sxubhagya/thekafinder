@@ -1271,6 +1271,7 @@ body.admin .icon-btn.admin-only { display: flex !important; }
 .detail-ico { width: 18px; height: 18px; color: #8e8e93; }
 .detail-key { font-size: 15px; color: #aeaeb2; }
 .detail-val { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; text-align: right; font-size: 15px; font-weight: 600; }
+.detail-val-wrap { max-width: 62%; font-weight: 500; line-height: 1.35; }
 .detail-val small { margin-top: 2px; font-size: 12px; font-weight: 500; color: #8e8e93; }
 .detail-val small.live { color: var(--accent-green); }
 .detail-val .mono { font-family: var(--font-family-mono); font-size: 12px; font-weight: 400; letter-spacing: 0.8px; user-select: text; }
@@ -1373,11 +1374,18 @@ body.admin .icon-btn.admin-only { display: flex !important; }
 }
 .btn-ghost:active { background: rgba(255, 255, 255, 0.06); }
 
-/* Short phones: trim the sheet so the compass is not covered */
+/* Short screens (iPhone Safari with toolbars, small phones): tighten spacing, never drop the address */
 @media (max-height: 720px) {
-  #compass-screen .view-target .sheet-sub { display: none; }
-  .metric-value { font-size: 28px; }
-  .btn-cta { height: 52px; margin: 10px 0 8px; }
+  #compass-screen { --dial-size: min(76vw, clamp(200px, calc(100dvh - 520px - env(safe-area-inset-top, 0px)), 310px)); }
+  .chip-row { margin-bottom: 6px; }
+  .sheet-handle { height: 24px; }
+  .sheet-title { font-size: 21px; }
+  .sheet-sub { margin-top: 2px; font-size: 14px; }
+  .metrics { margin-top: 8px; }
+  .metric-rule { height: 36px; }
+  .metric-value { font-size: 26px; }
+  .btn-cta { height: 50px; margin: 8px 0 8px; }
+  .quiet-btn { height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
