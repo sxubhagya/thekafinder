@@ -84,15 +84,15 @@
             "name": "Why is the compass needle spinning?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "In a dry state (Gujarat, Bihar, Nagaland, Mizoram or Lakshadweep) the bottle points at the nearest wet town instead. The dial only spins when there is nothing at all to point at, meaning no liquor store within 15 km."
+              "text": "The compass spins continuously if you enter a geoprohibited Dry Zone (like Bihar, Gujarat, Nagaland, Mizoram, or Lakshadweep) or if it's a dry day, indicating that no legal outlets are available nearby."
             }
           },
           {
             "@type": "Question",
-            "name": "What does the cab button do?",
+            "name": "What does the Uber button do?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "To prevent drinking and driving, the Cab button launches the Uber app with your pickup set to your location and destination pre-filled with the nearest liquor store's coordinates."
+              "text": "To prevent drinking and driving, the Book Cab button launches the Uber app with your pickup set to your location and destination pre-filled with the nearest liquor store's coordinates."
             }
           }
         ]
@@ -102,36 +102,6 @@
   </script>
 </head>
 <body>
-
-  <!-- Icon sprite (stroke icons, currentColor) -->
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
-    <defs>
-      <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></symbol>
-      <symbol id="i-beer" viewBox="0 0 24 24"><path d="M17 11h1a3 3 0 0 1 0 6h-1"/><path d="M9 12v6"/><path d="M13 12v6"/><path d="M14 7.5c-1 0-1.44.5-3 .5s-2-.5-3-.5-1.72.5-2.5.5a2.5 2.5 0 0 1 0-5c.78 0 1.57.5 2.5.5S9.44 2 11 2s2 1.5 3 1.5 1.72-.5 2.5-.5a2.5 2.5 0 0 1 0 5c-.78 0-1.5-.5-2.5-.5Z"/><path d="M5 8v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/></symbol>
-      <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
-      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
-      <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></symbol>
-      <symbol id="i-navigation" viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11"/></symbol>
-      <symbol id="i-car" viewBox="0 0 24 24"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></symbol>
-      <symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></symbol>
-      <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
-      <symbol id="i-thumb-up" viewBox="0 0 24 24"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></symbol>
-      <symbol id="i-thumb-down" viewBox="0 0 24 24"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/></symbol>
-      <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
-      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
-      <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
-      <symbol id="i-crosshair" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></symbol>
-      <symbol id="i-heart" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></symbol>
-      <symbol id="i-droplet" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></symbol>
-      <symbol id="i-chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
-      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="14" height="14" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
-      <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
-      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
-      <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
-      <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
-    </defs>
-  </svg>
-
 
   <!-- Transition Greeting Screen -->
   <div id="greeting-screen" class="greeting-screen">
@@ -143,303 +113,279 @@
         </div>
       </div>
     </div>
-    <p class="greeting-caption">Sniffing out the nearest theka...</p>
   </div>
 
   <!-- Status Bar Spacer (for iOS Notch/Safe Area) -->
   <div class="status-bar-safe-area"></div>
 
   <main id="app">
-    <!-- Screen 1: Welcome & permission gate -->
+    <!-- Screen 1: Welcome & Calibration Prompt -->
     <section id="permission-screen" class="screen active">
-      <!-- State 1: Welcome -->
-      <div id="welcome-state" class="state-container gate active">
-        <div class="gate-top">
+      <div class="glass-container welcome-card">
+        <!-- State 1: Welcome & Initial Prompt -->
+        <div id="welcome-state" class="state-container active">
           <div class="app-icon-container">
             <div class="app-icon-glow"></div>
-            <img src="/logo.png" alt="Theka Finder logo" class="app-icon-img">
+            <img src="/logo.png" alt="Theka Finder Logo" class="app-icon-img">
           </div>
-          <h1 class="gate-title">Theka <span>Finder</span></h1>
-          <p class="gate-sub">The only compass you need for the only place you need to go. Let's grab you a beer.</p>
-        </div>
-
-        <div class="gate-mid">
-          <h3 class="gate-label">We'll ask for two permissions</h3>
-          <div class="perm-row">
-            <span class="perm-ico"><svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg></span>
-            <span class="perm-text"><strong>Location</strong><small>Finds the theka nearest to you</small></span>
+          
+          <h1>THEKA FINDER</h1>
+          <p class="subtitle">The only compass you'd need for the only place you need to go to. Let's grab you a beer.</p>
+          
+          <div class="requirements-box">
+            <h3>Required Permissions:</h3>
+            <ul>
+              <li>
+                <span class="icon">📍</span>
+                <div>
+                  <strong>Location Services</strong>
+                  <span>Used to locate the nearest liquor store.</span>
+                </div>
+              </li>
+              <li>
+                <span class="icon">🧭</span>
+                <div>
+                  <strong>Motion & Orientation</strong>
+                  <span>Allows the compass dial to rotate as you turn.</span>
+                </div>
+              </li>
+            </ul>
           </div>
-          <div class="perm-row">
-            <span class="perm-ico"><svg class="ico" aria-hidden="true"><use href="#i-compass"/></svg></span>
-            <span class="perm-text"><strong>Motion &amp; orientation</strong><small>Turns the dial as you turn</small></span>
-          </div>
-        </div>
-
-        <div class="gate-bottom">
-          <button id="btn-request-access" class="btn-cta" type="button">
-            <svg class="ico" aria-hidden="true"><use href="#i-navigation"/></svg>
-            <span>Find nearest theka</span>
+          
+          <button id="btn-request-access" class="btn-primary">
+            <span>Find Nearest Theka</span>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+            </svg>
           </button>
-          <button id="btn-mock-mode" class="btn-ghost admin-only" type="button">Try mock simulator (desktop)</button>
-        </div>
-      </div>
-
-      <!-- State 2: Permission denied -->
-      <div id="denied-state" class="state-container gate gate-denied hidden">
-        <div class="gate-top">
-          <div class="denied-badge"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg></div>
-          <h2 class="gate-title gate-title-sm">No signal, no beer</h2>
-          <p class="gate-sub">To find the nearest theka and point the dial, we need your location and motion sensors.</p>
+          
+          <button id="btn-mock-mode" class="btn-secondary admin-only">
+            Try Mock Simulator (Desktop)
+          </button>
+          
+          <p class="welcome-report-link-container">
+            <a href="#" id="btn-report-issue-welcome" class="report-issue-trigger report-issue-link">Report an Issue</a>
+          </p>
         </div>
 
-        <div class="gate-mid">
-          <div class="steps-card">
-            <h3 class="steps-label">Enable on iPhone</h3>
-            <ol class="steps-list">
-              <li>Open <strong>Settings</strong>.</li>
-              <li><strong>Privacy &amp; Security</strong> → <strong>Location Services</strong> → On.</li>
-              <li><strong>Safari Websites</strong> → <strong>While Using the App</strong>.</li>
-              <li><strong>Settings</strong> → <strong>Safari</strong> → <strong>Motion &amp; Orientation Access</strong> → On.</li>
+        <!-- State 2: Permission Denied/Instruction Screen -->
+        <div id="denied-state" class="state-container hidden">
+          <div class="denied-icon-container">
+            <span class="denied-emoji">🔒</span>
+          </div>
+          <h2>Access Required</h2>
+          <p class="subtitle">To locate the nearest liquor store and align the compass needle, we need location and motion access.</p>
+          
+          <div class="instructions-box">
+            <h3>How to Enable on iOS Safari:</h3>
+            <ol class="ios-instructions">
+              <li>Open iPhone <strong>Settings</strong>.</li>
+              <li>Go to <strong>Privacy & Security</strong> &gt; <strong>Location Services</strong> and ensure it is turned ON.</li>
+              <li>Scroll down, select <strong>Safari Websites</strong>, and choose <strong>While Using the App</strong>.</li>
+              <li>Go back to main Settings, select <strong>Safari</strong>, scroll down to <strong>Motion & Orientation Access</strong> and toggle it ON.</li>
             </ol>
           </div>
-        </div>
-
-        <div class="gate-bottom">
-          <button id="btn-retry-permissions" class="btn-cta" type="button">
-            <svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg>
-            <span>Try again</span>
+          
+          <button id="btn-retry-permissions" class="btn-primary">
+            <span>Enable Permissions</span>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
           </button>
-          <button id="btn-report-issue-welcome" class="btn-text" type="button">Report an issue</button>
         </div>
       </div>
     </section>
 
     <!-- Screen 2: Main Compass Interface -->
-    <section id="compass-screen" class="screen" data-view="target" data-tone="amber" data-core="arrow" data-spin="0" data-oasis="0">
-      <!-- Top bar: report + beer on the left, refresh + guide on the right -->
-      <div class="top-bar">
-        <div class="top-bar-group">
-          <button id="btn-report-issue-trigger" class="icon-btn" type="button" aria-label="Report an issue" title="Report an issue">
-            <svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg>
-          </button>
-          <button id="btn-buy-beer" class="icon-btn icon-btn-amber" type="button" aria-label="Buy me a beer" title="Buy me a beer">
-            <svg class="ico" aria-hidden="true"><use href="#i-beer"/></svg>
-          </button>
-          <button id="btn-toggle-simulator-drawer" class="icon-btn admin-only" type="button" aria-label="Open compass simulator" title="Compass simulator">
-            <svg class="ico" aria-hidden="true"><use href="#i-compass"/></svg>
-          </button>
-        </div>
-        <div class="top-bar-group">
-          <button id="btn-refresh-theka" class="icon-btn btn-refresh" type="button" aria-label="Search again" title="Search again">
-            <svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg>
-          </button>
-          <button id="btn-info-faq" class="icon-btn" type="button" aria-label="Guide" title="Guide">
-            <svg class="ico" aria-hidden="true"><use href="#i-info"/></svg>
-          </button>
-        </div>
-      </div>
+    <section id="compass-screen" class="screen">
+      <!-- Info / FAQ Button -->
+      <button id="btn-info-faq" class="btn-info-faq" title="FAQ / Guide">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+      </button>
 
-      <!-- Heading readout: digits stay centred, the cardinal sits beside them -->
+      <!-- Top Readout -->
       <header class="compass-header">
-        <div class="heading-main">
+        <div class="heading-number-row">
           <span id="heading-val">0</span><span class="degree-symbol">°</span>
-          <span id="heading-dir" class="heading-dir">N</span>
+          <span id="heading-dir">N</span>
+        </div>
+        <div id="location-text" class="location-details">
+          Retrieving location...
         </div>
       </header>
 
-      <!-- Compass -->
-      <div class="compass-stage">
-        <div class="compass-pointer-index" aria-hidden="true"></div>
-
+      <!-- Center Compass Widget -->
+      <div class="compass-outer-container">
+        <!-- iOS Compass Top Line Pointer -->
+        <div class="compass-pointer-index"></div>
+        
         <div class="compass-viewport">
+          <!-- The Rotating Compass Dial -->
           <div id="compass-dial" class="compass-dial">
-            <svg id="dial-svg" viewBox="0 0 500 500" width="100%" height="100%" aria-hidden="true">
+            <svg id="dial-svg" viewBox="0 0 500 500" width="100%" height="100%">
               <!-- Ticks and markers generated by Javascript -->
             </svg>
           </div>
 
-          <!-- Core: arrow while seeking, beer on arrival, drop in a dry zone -->
-          <div class="dial-core">
-            <div class="core-disc">
-              <div id="arrow-indicator" class="core-arrow"><svg class="ico" aria-hidden="true"><use href="#i-navigation"/></svg></div>
-              <svg class="ico core-beer" aria-hidden="true"><use href="#i-beer"/></svg>
-              <svg class="ico core-drop" aria-hidden="true"><use href="#i-droplet"/></svg>
+          <!-- Needle pointing towards the nearest liquor store -->
+          <div id="liquor-needle" class="liquor-needle-container">
+            <div class="liquor-pointer">
+              <!-- Glow pulse behind the liquor target -->
+              <div class="pulse-glow"></div>
+              <svg viewBox="0 0 100 100" class="bottle-indicator">
+                <path d="M43,30 L43,15 C43,12 45,10 50,10 C55,10 57,12 57,15 L57,30 L65,38 C68,41 68,48 68,52 L68,85 C68,88 65,90 60,90 L40,90 C35,90 32,88 32,85 L32,52 C32,48 32,41 35,38 Z" fill="#ffb703" stroke="#fff" stroke-width="2" />
+                <rect x="41" y="20" width="18" height="4" fill="#fb8500" />
+                <rect x="36" y="55" width="28" height="20" rx="2" fill="#fff" opacity="0.9" />
+                <path d="M45,62 H55 M47,68 H53" stroke="#000" stroke-width="2" stroke-linecap="round" />
+              </svg>
+              <!-- Small distance label that rides on the needle -->
+              <span id="needle-distance-label">-- m</span>
             </div>
-            <div id="direction-instructions" class="core-text" aria-live="polite">Stand still to calibrate</div>
           </div>
 
-          <!-- Bottle marker pointing at the target -->
-          <div id="liquor-needle" class="liquor-needle-container">
-            <div class="needle-tether"></div>
-            <div class="liquor-pointer">
-              <div class="pulse-glow"></div>
-              <svg viewBox="0 0 100 100" class="bottle-indicator" aria-hidden="true">
-                <path class="bt-body" d="M43,30 L43,15 C43,12 45,10 50,10 C55,10 57,12 57,15 L57,30 L65,38 C68,41 68,48 68,52 L68,85 C68,88 65,90 60,90 L40,90 C35,90 32,88 32,85 L32,52 C32,48 32,41 35,38 Z"/>
-                <rect class="bt-cap" x="41" y="20" width="18" height="4"/>
-                <rect class="bt-label" x="36" y="55" width="28" height="20" rx="2"/>
-                <path class="bt-mark" d="M45,62 H55 M47,68 H53"/>
-              </svg>
-              <span id="needle-distance-label" hidden>-- m</span>
-            </div>
+          <!-- iOS Crosshair (fixed in center) -->
+          <div class="compass-crosshair">
+            <div class="cross-x"></div>
+            <div class="cross-y"></div>
           </div>
         </div>
       </div>
 
-      <!-- Search / GPS status for screen readers (the sheet carries the visible state) -->
-      <p class="sr-only" role="status" aria-live="polite"><span id="status-live-dot"></span><span id="theka-status-text">Searching for the nearest theka...</span></p>
+      <!-- Bottom Card for Nearness & Steps -->
+      <footer class="bottom-card-container">
+        <div class="bottom-card glass-container">
+          <div class="card-glow"></div>
+          
+          <div class="theka-status-badge">
+            <span class="status-dot pulsing"></span>
+            <span id="theka-status-text">Searching for nearest theka...</span>
+            <span id="theka-source-badge" class="source-badge"></span>
+            <button id="btn-refresh-theka" class="btn-refresh" title="Force Refresh Location">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+              </svg>
+            </button>
+          </div>
 
-      <!-- Dim the compass while the sheet is open -->
-      <div id="sheet-scrim" class="sheet-scrim"></div>
-
-      <!-- Bottom sheet -->
-      <section id="bottom-sheet" class="bottom-sheet" aria-label="Nearest theka">
-        <button id="sheet-handle" class="sheet-handle" type="button" aria-expanded="false" aria-controls="sheet-more" aria-label="Show more details"><span class="sheet-grip"></span></button>
-
-        <div class="sheet-main">
-          <!-- View: heading for a target -->
-          <div class="view view-target">
-            <div class="chip-row">
-              <span id="theka-open-status" class="status-chip open-status-badge" style="display: none;">
+          <div class="theka-info-header">
+            <div class="status-badges-row">
+              <span id="theka-open-status" class="theka-status-badge open-status-badge" style="display: none;">
                 <span class="status-dot"></span>
-                <span id="theka-open-text">Open now</span>
+                <span id="theka-open-text">Open Now</span>
               </span>
             </div>
-            <h2 id="theka-name" class="sheet-title">Liquor Store</h2>
-            <p id="theka-address" class="sheet-sub">Finding coordinates...</p>
+            <h2 id="theka-name">Liquor Store</h2>
+            <p id="theka-address" class="theka-address">Finding coordinates...</p>
+          </div>
 
-            <div class="metrics">
-              <div class="metric">
-                <div class="metric-label">DISTANCE</div>
-                <div class="metric-value"><span id="metric-distance">--</span><span class="metric-unit" id="metric-distance-unit">m</span></div>
+          <div class="metrics-grid">
+            <div class="metric-box">
+              <div class="metric-label">DISTANCE</div>
+              <div class="metric-value-row">
+                <span id="metric-distance">--</span>
+                <span class="metric-unit" id="metric-distance-unit">m</span>
               </div>
-              <div class="metric-rule" aria-hidden="true"></div>
-              <div class="metric metric-accent">
-                <div class="metric-label">STEPS TO BEER</div>
-                <div class="metric-value"><span id="metric-steps">--</span><span class="metric-unit">steps</span></div>
+            </div>
+            <div class="metric-box highlighted">
+              <div class="metric-label">STEPS TO BEER</div>
+              <div class="metric-value-row">
+                <span id="metric-steps">--</span>
+                <span class="metric-unit">steps</span>
               </div>
             </div>
           </div>
 
-          <!-- View: dry state or desert -->
-          <div class="view view-dry">
-            <div class="chip-row">
-              <span id="dry-chip" class="status-chip tone-red"><span class="status-dot"></span><span id="dry-chip-text">Dry zone</span></span>
-            </div>
-            <h2 id="dry-title" class="sheet-title">Compass is spinning in grief</h2>
-            <p id="dry-message" class="sheet-sub sheet-sub-wrap"></p>
-            <div id="oasis-card" class="oasis-card">
-              <span class="oasis-ico"><svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg></span>
-              <span class="oasis-text">
-                <strong id="oasis-name">Border oasis</strong>
-                <span id="oasis-meta">Nearest wet town</span>
-              </span>
+          <div class="direction-indicator-row">
+            <div class="arrow-indicator" id="arrow-indicator">➔</div>
+            <div class="direction-instructions" id="direction-instructions">
+              Stand still to calibrate compass
             </div>
           </div>
 
-          <!-- View: arrived -->
-          <div class="view view-arrived">
-            <h2 class="sheet-title">Cheers, you made it.</h2>
-            <p id="arrived-sub" class="sheet-sub">You're at the theka</p>
-            <div id="support-card" class="support-card">
-              <h3>Enjoying Theka Finder?</h3>
-              <p>Free, ad-free and made in Sonipat. A beer keeps the compass spinning.</p>
-              <button id="btn-arrived-beer" class="btn-cta" type="button">
-                <svg class="ico" aria-hidden="true"><use href="#i-beer"/></svg>
-                <span>Buy me a beer</span>
+          <div class="card-actions">
+            <a href="#" id="btn-apple-maps" target="_blank" class="btn-action-primary disabled">
+              <span>Apple Maps</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+            </a>
+            <a href="#" id="btn-google-maps" target="_blank" class="btn-action-primary disabled">
+              <span>Google Maps</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M20.5 3l-.16.03L15 5.1 9 3 3.36 4.9c-.21.07-.36.27-.36.48v15.12c0 .22.14.42.36.48l5.5 1.98L15 20.9l5.64 1.9c.08.03.16.04.24.04.21 0 .42-.1.52-.3.1-.17.1-.38.1-.58V3.5c0-.25-.15-.46-.3-.5zm-6.5 16.1l-4-1.4V5l4 1.4v12.7z M12 6.5C10.1 6.5 8.5 8.1 8.5 10c0 2.5 3.5 6.5 3.5 6.5s3.5-4 3.5-6.5c0-1.9-1.6-3.5-3.5-3.5zm0 4.8c-.7 0-1.3-.6-1.3-1.3s.6-1.3 1.3-1.3 1.3.6 1.3 1.3-.6 1.3-1.3 1.3z"/>
+              </svg>
+            </a>
+            <a href="#" id="btn-book-cab" target="_blank" class="btn-action-primary disabled">
+              <span>Book Cab</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.27-3.82c.14-.4.51-.68.94-.68h9.56c.43 0 .8.28.94.68L19 11H5z"/>
+              </svg>
+            </a>
+            <button id="btn-share-theka" class="btn-action-secondary">
+              <span>Tell the Gang</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92zM18 4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM6 13c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm12 7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/>
+              </svg>
+            </button>
+            <button id="btn-emergency-sos" class="btn-action-emergency disabled" title="Emergency SOS">
+              <span>SOS</span>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+              </svg>
+            </button>
+            <button id="btn-toggle-simulator-drawer" class="btn-action-secondary admin-only" style="padding: 12px 14px;">
+              <span>🧭</span>
+            </button>
+          </div>
+
+          <div id="crowdsourced-feedback-section" class="feedback-section" style="display: none;">
+            <div class="feedback-metrics" id="feedback-metrics-text">
+              Loading crowdsourced reports...
+            </div>
+            <div class="feedback-question-row">
+              <span class="feedback-q-text">Is this store open in reality?</span>
+              <div class="feedback-buttons">
+                <button id="btn-report-open" class="btn-feedback-yes" title="Report Open">👍 Open</button>
+                <button id="btn-report-closed" class="btn-feedback-no" title="Report Closed">👎 Closed</button>
+              </div>
+            </div>
+          </div>
+
+          <hr class="card-divider">
+
+          <!-- Developer Credits & Donate CTA -->
+          <div class="dev-credits-container">
+            <div class="dev-info">
+              <span class="made-with-love">Made with <span>♥</span> by <a href="https://github.com/sxubhagya" target="_blank" class="dev-name">Soubhagya</a></span>
+              <span class="location-tagline">from Sonipat to the world • <a href="#" id="btn-report-issue-trigger" class="report-issue-trigger report-issue-link">Report an Issue</a></span>
+            </div>
+            
+            <div class="dev-social-actions">
+              <div class="social-icons">
+                <a href="https://www.instagram.com/soubh44gy4" target="_blank" aria-label="Instagram">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+                  </svg>
+                </a>
+                <a href="https://www.linkedin.com/in/soubhagyadas" target="_blank" aria-label="LinkedIn">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                  </svg>
+                </a>
+              </div>
+              
+              <button id="btn-buy-beer" class="btn-buy-beer">
+                <span>🍺 Buy me a beer</span>
               </button>
             </div>
-            <button id="btn-arrived-later" class="btn-text" type="button">Maybe later</button>
-          </div>
-
-          <!-- Primary action -->
-          <button id="btn-directions" class="btn-cta disabled" type="button" aria-haspopup="dialog">
-            <svg class="ico" aria-hidden="true"><use href="#i-navigation"/></svg>
-            <span id="directions-label">Directions</span>
-          </button>
-
-          <!-- Quiet row -->
-          <div class="quiet-row">
-            <a id="btn-book-cab" class="quiet-btn quiet-cab disabled" href="#" target="_blank" rel="noopener">
-              <svg class="ico" aria-hidden="true"><use href="#i-car"/></svg><span>Cab</span>
-            </a>
-            <button id="btn-share-theka" class="quiet-btn" type="button">
-              <svg class="ico" aria-hidden="true"><use href="#i-share"/></svg><span>Tell the gang</span>
-            </button>
-            <button id="btn-emergency-sos" class="quiet-btn quiet-sos disabled" type="button" title="Emergency SOS">
-              <svg class="ico" aria-hidden="true"><use href="#i-alert"/></svg><span>SOS</span>
-            </button>
           </div>
         </div>
-
-        <!-- Expanded details -->
-        <div class="sheet-more-wrap">
-          <div id="sheet-more" class="sheet-more">
-            <div class="detail-card">
-              <div class="detail-row row-hours">
-                <svg class="ico detail-ico" aria-hidden="true"><use href="#i-clock"/></svg>
-                <span class="detail-key">Hours</span>
-                <span class="detail-val"><span id="detail-hours">Hours unavailable</span><small id="detail-hours-sub"></small></span>
-              </div>
-              <div class="detail-row">
-                <svg class="ico detail-ico" aria-hidden="true"><use href="#i-pin"/></svg>
-                <span class="detail-key">Source</span>
-                <span class="detail-val"><span id="theka-source-badge">--</span></span>
-              </div>
-              <div class="detail-row">
-                <svg class="ico detail-ico" aria-hidden="true"><use href="#i-crosshair"/></svg>
-                <span class="detail-key">You're at</span>
-                <span class="detail-val"><span id="location-text" class="mono">Retrieving location...</span></span>
-              </div>
-            </div>
-
-            <div id="crowdsourced-feedback-section" class="vote-card" style="display: none;">
-              <h3 class="vote-title"><svg class="ico" aria-hidden="true"><use href="#i-users"/></svg>Is it open right now?</h3>
-              <p class="vote-stats" id="feedback-metrics-text">Loading crowdsourced reports...</p>
-              <div class="vote-buttons">
-                <button id="btn-report-open" class="vote-btn vote-open" type="button"><svg class="ico" aria-hidden="true"><use href="#i-thumb-up"/></svg>Open</button>
-                <button id="btn-report-closed" class="vote-btn vote-closed" type="button"><svg class="ico" aria-hidden="true"><use href="#i-thumb-down"/></svg>Closed</button>
-              </div>
-            </div>
-
-            <p class="sheet-credit">Made with <span aria-label="love">♥</span> by <a href="https://github.com/sxubhagya" target="_blank" rel="noopener">Soubhagya</a> · from Sonipat to the world</p>
-            <div class="sheet-social">
-              <a href="https://www.instagram.com/soubh44gy4" target="_blank" rel="noopener" aria-label="Instagram">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
-              </a>
-              <a href="https://www.linkedin.com/in/soubhagyadas" target="_blank" rel="noopener" aria-label="LinkedIn">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-              </a>
-            </div>
-          </div>
-        </div>
-      </section>
+      </footer>
     </section>
-
-    <!-- Directions picker -->
-    <div id="picker-modal" class="sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="picker-title">
-      <div class="picker-sheet">
-        <span class="sheet-grip sheet-grip-static"></span>
-        <h3 id="picker-title" class="picker-title">Get to the theka</h3>
-        <p id="picker-sub" class="picker-sub"></p>
-
-        <a id="btn-apple-maps" class="picker-row disabled" href="#" target="_blank" rel="noopener">
-          <span class="picker-ico"><svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg></span>
-          <span class="picker-text"><strong>Apple Maps</strong><small>Walking directions</small></span>
-          <svg class="ico picker-chev" aria-hidden="true"><use href="#i-chevron"/></svg>
-        </a>
-        <a id="btn-google-maps" class="picker-row disabled" href="#" target="_blank" rel="noopener">
-          <span class="picker-ico"><svg class="ico" aria-hidden="true"><use href="#i-navigation"/></svg></span>
-          <span class="picker-text"><strong>Google Maps</strong><small>Open the pin in Google Maps</small></span>
-          <svg class="ico picker-chev" aria-hidden="true"><use href="#i-chevron"/></svg>
-        </a>
-        <a id="btn-book-cab-picker" class="picker-row picker-cab disabled" href="#" target="_blank" rel="noopener">
-          <span class="picker-ico"><svg class="ico" aria-hidden="true"><use href="#i-car"/></svg></span>
-          <span class="picker-text"><strong>Book a cab</strong><small>Uber · pickup at your location</small></span>
-          <svg class="ico picker-chev" aria-hidden="true"><use href="#i-chevron"/></svg>
-        </a>
-        <button id="btn-picker-cancel" class="btn-ghost" type="button">Cancel</button>
-      </div>
-    </div>
 
     <!-- Simulator Control Drawer (Persistent Sidebar/Drawer) -->
     <aside id="simulator-drawer" class="simulator-drawer">
@@ -561,142 +507,191 @@
   <!-- Full-Screen Confetti Canvas -->
   <canvas id="confetti-canvas"></canvas>
 
-  <!-- Buy me a beer -->
-  <div id="beer-modal" class="sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="beer-title">
-    <div class="picker-sheet">
-      <span class="sheet-grip sheet-grip-static"></span>
-      <button id="btn-close-beer-modal" class="sheet-close" type="button" aria-label="Close"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
-      <h3 id="beer-title" class="picker-title">Buy me a beer</h3>
-      <p class="picker-sub">If this compass found you a cold one, say thanks.</p>
-
-      <div class="segmented" role="tablist">
-        <button id="tab-india" class="seg active" type="button" role="tab" aria-selected="true">India</button>
-        <button id="tab-intl" class="seg" type="button" role="tab" aria-selected="false">International</button>
+  <!-- Buy Me a Beer Modal Overlay -->
+  <div id="beer-modal" class="modal-overlay hidden">
+    <div class="glass-container modal-content">
+      <button id="btn-close-beer-modal" class="btn-close-modal">&times;</button>
+      <div class="beer-modal-header">
+        <span class="beer-modal-emoji">🍺</span>
+        <h3>Buy me a Beer!</h3>
+        <p class="subtitle">If this compass helped you find a cold beverage, consider supporting Soubhagya!</p>
       </div>
 
-      <!-- India: UPI -->
+      <!-- Tab Selectors -->
+      <div class="payment-tabs">
+        <button id="tab-india" class="tab-btn active">🇮🇳 India</button>
+        <button id="tab-intl" class="tab-btn">🌐 International (Ko-fi)</button>
+      </div>
+      
+      <!-- India Payment Panel -->
       <div id="panel-india" class="payment-panel active">
-        <div id="upi-amounts" class="amount-row" role="group" aria-label="Amount">
-          <button class="amount-btn" type="button" data-amount="50">₹50</button>
-          <button class="amount-btn active" type="button" data-amount="100">₹100</button>
-          <button class="amount-btn" type="button" data-amount="200">₹200</button>
-          <button class="amount-btn" type="button" data-amount="">Other</button>
-        </div>
-
-        <div class="upi-card">
-          <div class="upi-head">
-            <div class="upi-id">
-              <span class="upi-id-label">UPI ID</span>
+        <div class="beer-payment-box">
+          <div class="upi-option">
+            <span class="payment-label">UPI ID:</span>
+            <div class="upi-id-row">
               <code id="upi-address">9058309001@superyes</code>
+              <button id="btn-copy-upi" class="btn-copy">Copy</button>
             </div>
-            <button id="btn-copy-upi" class="btn-copy" type="button"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg><span id="copy-label">Copy</span></button>
           </div>
-          <a id="upi-qr-link" class="upi-qr" href="#" aria-label="Pay with a UPI app"><span id="upi-qr" aria-hidden="true"></span></a>
-          <p id="upi-caption" class="upi-caption">Scan to pay ₹100 with any UPI app</p>
+          
+          <div class="qr-code-placeholder">
+            <div class="qr-frame">
+              <div class="qr-square qr-tl"></div>
+              <div class="qr-square qr-tr"></div>
+              <div class="qr-square qr-bl"></div>
+              <div class="qr-dots-bg">
+                <svg viewBox="0 0 100 100" width="100%" height="100%" fill="#000000" opacity="0.8">
+                  <rect x="15" y="15" width="20" height="20" fill="none" stroke="currentColor" stroke-width="4"/>
+                  <rect x="21" y="21" width="8" height="8"/>
+                  <rect x="65" y="15" width="20" height="20" fill="none" stroke="currentColor" stroke-width="4"/>
+                  <rect x="71" y="21" width="8" height="8"/>
+                  <rect x="15" y="65" width="20" height="20" fill="none" stroke="currentColor" stroke-width="4"/>
+                  <rect x="21" y="71" width="8" height="8"/>
+                  <rect x="45" y="45" width="10" height="10"/>
+                  <rect x="40" y="25" width="5" height="15"/>
+                  <rect x="55" y="20" width="5" height="5"/>
+                  <rect x="20" y="45" width="15" height="5"/>
+                  <rect x="45" y="65" width="10" height="5"/>
+                  <rect x="65" y="45" width="15" height="10"/>
+                  <rect x="65" y="65" width="5" height="15"/>
+                  <rect x="80" y="80" width="5" height="5"/>
+                </svg>
+              </div>
+            </div>
+            <p class="qr-instructions">Scan to pay with any UPI App</p>
+          </div>
         </div>
-
-        <button id="btn-beer-success" class="btn-cta" type="button">
-          <svg class="ico" aria-hidden="true"><use href="#i-heart"/></svg>
-          <span>I've donated</span>
+        
+        <button id="btn-beer-success" class="btn-primary">
+          <span>I've Donated! 🍺</span>
         </button>
       </div>
 
-      <!-- International: Ko-fi -->
+      <!-- International Payment Panel -->
       <div id="panel-intl" class="payment-panel">
-        <div class="kofi-card">
-          <span class="kofi-ico"><svg class="ico" aria-hidden="true"><use href="#i-heart"/></svg></span>
-          <h4>Support on Ko-fi</h4>
-          <p>You choose the amount on Ko-fi. Cards, Apple Pay, Google Pay and PayPal all work.</p>
+        <div class="intl-donate-grid">
+          <a href="https://ko-fi.com/soubhagya" target="_blank" class="intl-card" data-amount="5">
+            <span class="intl-emoji">🍺</span>
+            <span class="intl-amt">$5</span>
+            <span class="intl-desc">Pint of Beer</span>
+          </a>
+          <a href="https://ko-fi.com/soubhagya" target="_blank" class="intl-card" data-amount="10">
+            <span class="intl-emoji">🍻</span>
+            <span class="intl-amt">$10</span>
+            <span class="intl-desc">Six-Pack</span>
+          </a>
+          <a href="https://ko-fi.com/soubhagya" target="_blank" class="intl-card custom" data-amount="custom">
+            <span class="intl-emoji">💸</span>
+            <span class="intl-amt">Custom</span>
+            <span class="intl-desc">Support Dev</span>
+          </a>
         </div>
-        <a id="btn-open-kofi" class="btn-cta" href="https://ko-fi.com/soubhagya" target="_blank" rel="noopener">
-          <svg class="ico" aria-hidden="true"><use href="#i-heart"/></svg>
-          <span>Open Ko-fi</span>
-        </a>
-        <p class="fine-print">Opens ko-fi.com in your browser</p>
+        <p class="intl-helper-text">Links redirect to my Ko-fi page (supports Credit Cards, Apple Pay, Google Pay, PayPal)</p>
       </div>
     </div>
   </div>
 
-  <!-- Guide (FAQ) -->
-  <div id="faq-modal" class="sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="guide-title">
-    <div class="picker-sheet">
-      <span class="sheet-grip sheet-grip-static"></span>
-      <button id="btn-close-faq-modal" class="sheet-close" type="button" aria-label="Close"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
-      <h3 id="guide-title" class="picker-title">Guide</h3>
-      <p class="picker-sub">Answering life's most pressing questions.</p>
-
-      <div class="faq-list">
-        <details class="faq-item" open>
-          <summary>What is a "theka"?</summary>
-          <p>Listen up, rookie. A <strong>Theka</strong> (pronounced <em>thay-kaa</em>) is a government-licensed retail shop in India where spirits are sold. Forget cozy aisles and wine-tasting notes. In a real theka, speed is everything. You slide your money through a tiny metal grille, scream your order, get a bottle wrapped in a black polythene bag, and make way for the next guy. Simple, efficient, beautiful.</p>
-        </details>
-        <details class="faq-item">
-          <summary>What does the compass do?</summary>
-          <p>It is a literal <strong>Daaru Direction System (DDS)</strong>. Instead of typing "liquor shop near me" on maps and scrolling through outdated listings, this compass points a giant beer bottle straight at the nearest theka. Spin around and the bottle tracks in real time. Just follow the bottle!</p>
-        </details>
-        <details class="faq-item">
-          <summary>What are "steps to beer"?</summary>
-          <p>Distance in meters is fine, but how many physical steps stand between you and your cold beverage? We calculate this using an average human stride (~0.76 meters). Think of it as your cardio motivation index.</p>
-        </details>
-        <details class="faq-item">
-          <summary>What's the cab button for?</summary>
-          <p>Drinking and driving is an absolute <strong>NO-GO</strong>. Absolutely no <em>car-o-bar</em> (tailgate drinking) if you're behind the wheel. If the nearest theka is too far to walk, hit <strong>Cab</strong> to open Uber with your pickup set to where you are and the theka pre-filled as the destination. Arrive like a VIP, return safely.</p>
-        </details>
-        <details class="faq-item">
-          <summary>Why is the compass spinning?</summary>
-          <p>Ah, you've hit a <strong>Dry Zone</strong>. Gujarat, Bihar, Nagaland, Mizoram and Lakshadweep have no legal thekas, so there the bottle points at the nearest wet town (a "border oasis") instead. If the dial itself spins in grief, there is simply nothing to point at: no shop within 15 km. Put the glass down and hydrate, boss.</p>
-        </details>
-        <details class="faq-item">
-          <summary>Why report open or closed?</summary>
-          <p>In India, theka timings are unpredictable. They might shut for a local election, a festival, or because the owner wanted to go home early. Opening hours come live from Google, but when enough people say the opposite (five or more reports in 12 hours, and most of them disagree), their word wins. Help the gang out and cast your vote!</p>
-        </details>
-        <details class="faq-item">
-          <summary>What does SOS do?</summary>
-          <p>The <strong>Emergency Beer SOS</strong>. If you are stranded or desperately need your friends to bring backup, hitting SOS opens WhatsApp with a prefilled, witty message containing your exact GPS coordinates and a search link. Help is on the way!</p>
-        </details>
+  <!-- FAQ Modal Overlay -->
+  <div id="faq-modal" class="modal-overlay hidden">
+    <div class="glass-container modal-content faq-modal-content">
+      <button id="btn-close-faq-modal" class="btn-close-modal">&times;</button>
+      <div class="faq-modal-header">
+        <span class="faq-modal-emoji">ℹ️</span>
+        <h3>Theka Finder FAQ</h3>
+        <p class="subtitle">Answering life's most pressing questions. Dialect tuned to local frequencies. 🍻</p>
       </div>
 
-      <div class="guide-actions">
-        <button id="btn-guide-report" class="btn-ghost-sm" type="button"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg>Report an issue</button>
-        <button id="btn-guide-beer" class="btn-ghost-sm" type="button"><svg class="ico" aria-hidden="true"><use href="#i-beer"/></svg>Buy me a beer</button>
+      <div class="faq-content-scroll">
+        <div class="faq-item">
+          <h4>🤔 What is a "Theka"?</h4>
+          <p>
+            Listen up, rookie. A <strong>Theka</strong> (pronounced <em>thay-kaa</em>) is a government-licensed retail shop in India where spirits are sold. Forget cozy aisles and wine-tasting notes. In a real theka, speed is everything. You slide your money through a tiny metal grille, scream your order, get a bottle wrapped in a black polythene bag, and make way for the next guy. Simple, efficient, beautiful.
+          </p>
+        </div>
+
+        <div class="faq-item">
+          <h4>🧭 What does the compass do?</h4>
+          <p>
+            It is a literal <strong>Daaru Direction System (DDS)</strong>. Instead of typing "liquor shop near me" on maps and scrolling through outdated listings, this compass points a giant beer bottle straight at the nearest checked theka. Spin around—the needle tracks in real-time. Just follow the bottle!
+          </p>
+        </div>
+
+        <div class="faq-item">
+          <h4>🏃 What is "Steps to Beer"?</h4>
+          <p>
+            Distance in meters is fine, but how many physical steps stand between you and your cold beverage? We calculate this using an average human stride (~0.76 meters). Think of it as your cardio motivation index.
+          </p>
+        </div>
+
+        <div class="faq-item">
+          <h4>🚖 What's the Uber button for?</h4>
+          <p>
+            Drinking and driving is an absolute <strong>NO-GO</strong>. Absolutely no <em>car-o-bar</em> (tailgate drinking) if you're behind the wheel. If the nearest theka is too far to walk, hit the "Book Cab" button to load Uber with your target theka's coordinates pre-filled. Arrive like a VIP, return safely.
+          </p>
+        </div>
+
+        <div class="faq-item">
+          <h4>❌ Why is the compass spinning like crazy?</h4>
+          <p>
+            Ah, you've hit a <strong>Dry Zone</strong>. If you are in Gujarat, Bihar, Nagaland, Mizoram, or Lakshadweep (or if it's a national Dry Day), legal thekas are non-existent. The compass needle spins indefinitely in grief. Put the glass down and hydrate, boss.
+          </p>
+        </div>
+
+        <div class="faq-item">
+          <h4>👍/👎 Why report Open/Closed?</h4>
+          <p>
+            In India, theka timings are unpredictable. They might shut down for a local election, a festival, or because the owner wanted to go home early. The crowdsourced voting system calculates a real-time consensus so you don't walk all the way just to find a locked shutter. Help the gang out—cast your vote!
+          </p>
+        </div>
+
+        <div class="faq-item">
+          <h4>🚨 What is the SOS button?</h4>
+          <p>
+            The <strong>Emergency Beer SOS</strong>. If you are stranded or desperately need your friends to bring backup, hitting the SOS button opens WhatsApp with a prefilled, witty message containing your exact GPS coordinates and a search link. Help is on the way!
+          </p>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Report an issue -->
-  <div id="issue-modal" class="sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="issue-title">
-    <div class="picker-sheet">
-      <span class="sheet-grip sheet-grip-static"></span>
-      <button id="btn-close-issue-modal" class="sheet-close" type="button" aria-label="Close"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
-      <h3 id="issue-title" class="picker-title">Report an issue</h3>
-      <p class="picker-sub">Something not working? Let me know and I'll fix it.</p>
+  <!-- Report an Issue Modal Overlay -->
+  <div id="issue-modal" class="modal-overlay hidden">
+    <div class="glass-container modal-content issue-modal-content">
+      <button id="btn-close-issue-modal" class="btn-close-modal">&times;</button>
+      <div class="issue-modal-header">
+        <span class="issue-modal-emoji">🛠️</span>
+        <h3>Report an Issue</h3>
+        <p class="subtitle">Something not working? Let us know and we'll fix it. 🍻</p>
+      </div>
 
       <form id="issue-form" class="issue-form">
+        <!-- Location details autofilled -->
         <div class="form-group">
-          <label for="issue-detected-location">Detected location</label>
-          <div class="field field-static"><span id="issue-detected-location">Resolving location...</span></div>
+          <label>Detected Location:</label>
+          <div class="location-autofill-box">
+            <span id="issue-detected-location">Resolving location... 🧭</span>
+          </div>
         </div>
 
         <div class="form-group">
-          <label for="issue-type">What's the problem?</label>
-          <select id="issue-type" class="field" required>
+          <label for="issue-type">What is the problem?</label>
+          <select id="issue-type" required>
             <option value="" disabled selected>Select an issue...</option>
-            <option value="Not picking up stores around me">Not picking up stores around me</option>
-            <option value="Location / Compass not updating">Location / compass not updating</option>
-            <option value="Uber integration not working">Cab / Uber not working</option>
-            <option value="Incorrect store details or timings">Incorrect store details or timings</option>
-            <option value="Something else is broken">Something else is broken</option>
+            <option value="Not picking up stores around me">Not picking up stores around me 🌵</option>
+            <option value="Location / Compass not updating">Location / Compass not updating 🧭</option>
+            <option value="Uber integration not working">Uber integration not working 🚖</option>
+            <option value="Incorrect store details or timings">Incorrect store details or timings 📝</option>
+            <option value="Something else is broken">Something else is broken 💥</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label for="issue-description">Details</label>
-          <textarea id="issue-description" class="field" placeholder="Describe what's happening..." maxlength="2000" required></textarea>
+          <label for="issue-description">Details / Description:</label>
+          <textarea id="issue-description" placeholder="Please describe what's happening..." required></textarea>
         </div>
 
-        <button type="submit" id="btn-submit-issue" class="btn-cta">
-          <svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>
-          <span>Submit report</span>
+        <button type="submit" id="btn-submit-issue" class="btn-primary btn-submit-issue">
+          <span>Submit Report</span>
         </button>
       </form>
     </div>

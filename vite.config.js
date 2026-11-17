@@ -1,68 +1,117 @@
 import { defineConfig, loadEnv } from 'vite';
 
-/**
- * Dev-only: serve the real serverless functions in /api through Vite, so
- * /api/places, /api/place-hours, /api/feedback and /api/report-issue all work
- * locally exactly as they do on Vercel (same code, no second copy to keep in sync).
- * Values from .env / .env.local are exposed to them as process.env.
- */
-function apiDevPlugin(env) {
-  return {
-    name: 'api-dev-middleware',
-    configureServer(server) {
-      for (const [key, value] of Object.entries(env)) {
-        if (process.env[key] === undefined) process.env[key] = value;
-      }
-
-      server.middlewares.use(async (req, res, next) => {
-        if (!req.url || !req.url.startsWith('/api/')) return next();
-
-        const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-        const name = url.pathname.replace(/^\/api\//, '').replace(/\/$/, '');
-        if (!/^[a-z0-9-]+$/i.test(name)) return next();
-
-        let handler;
-        try {
-          handler = (await server.ssrLoadModule(`/api/${name}.js`)).default;
-        } catch (err) {
-          if (err && /Failed to load url|Cannot find module|does not exist/i.test(String(err.message))) {
-            res.statusCode = 404;
-            res.setHeader('Content-Type', 'application/json');
-            return res.end(JSON.stringify({ error: `No such endpoint: /api/${name}` }));
-          }
-          console.error(`Vite Dev: failed to load /api/${name}`, err);
-          res.statusCode = 500;
-          res.setHeader('Content-Type', 'application/json');
-          return res.end(JSON.stringify({ error: 'Failed to load API handler', message: err.message }));
-        }
-
-        // Minimal Vercel-style req/res shims
-        req.query = Object.fromEntries(url.searchParams);
-        if (req.method === 'POST' || req.method === 'PUT') {
-          const chunks = [];
-          for await (const chunk of req) chunks.push(chunk);
-          const raw = Buffer.concat(chunks).toString('utf8');
-          try { req.body = raw ? JSON.parse(raw) : {}; } catch { req.body = undefined; }
-        }
-        res.status = (code) => { res.statusCode = code; return res; };
-        res.json = (payload) => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(payload)); return res; };
-
-        try {
-          await handler(req, res);
-        } catch (err) {
-          console.error(`Vite Dev: /api/${name} threw`, err);
-          if (!res.headersSent) res.status(500).json({ error: 'Handler error', message: err.message });
-        }
-      });
-    },
-  };
-}
-
 export default defineConfig(({ mode }) => {
+  // Load environment variables from the current directory (including .env or .env.local)
   const env = loadEnv(mode, process.cwd(), '');
+
   return {
-    css: { postcss: { plugins: [] } },
-    server: { host: true, port: 5173, strictPort: true },
-    plugins: [apiDevPlugin(env)],
+    css: {
+      postcss: {
+        plugins: []
+      }
+    },
+    server: {
+      host: true, // Listen on all local IP addresses
+      port: 5173,
+      strictPort: true
+    },
+    plugins: [
+      {
+        name: 'api-places-middleware',
+        configureServer(server) {
+          server.middlewares.use(async (req, res, next) => {
+            // Check if request is targeting the backend proxy path
+            if (req.url && req.url.startsWith('/api/places')) {
+              res.setHeader('Content-Type', 'application/json');
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS');
+
+              if (req.method === 'OPTIONS') {
+                res.statusCode = 200;
+                res.end();
+                return;
+              }
+
+              try {
+                const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+                const lat = urlObj.searchParams.get('lat');
+                const lon = urlObj.searchParams.get('lon');
+                const radius = urlObj.searchParams.get('radius') || '5000';
+
+                if (!lat || !lon) {
+                  res.statusCode = 400;
+                  res.end(JSON.stringify({ error: 'Missing lat or lon query parameters' }));
+                  return;
+                }
+
+                // Check for local API key
+                const apiKey = env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
+                if (!apiKey) {
+                  console.warn('Vite Dev: GOOGLE_MAPS_API_KEY is not defined in your .env file. Returning empty list.');
+                  res.statusCode = 200;
+                  res.end(JSON.stringify({
+                    error: 'Local key missing',
+                    fallback: true,
+                    results: []
+                  }));
+                  return;
+                }
+
+                const googleUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lon}&radius=${radius}&type=liquor_store&key=${apiKey}`;
+                
+                const response = await fetch(googleUrl);
+                if (!response.ok) {
+                  throw new Error(`Google API responded with status ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.status === 'ZERO_RESULTS') {
+                  res.statusCode = 200;
+                  res.end(JSON.stringify({ results: [] }));
+                  return;
+                }
+
+                if (data.status !== 'OK') {
+                  res.statusCode = 500;
+                  res.end(JSON.stringify({
+                    error: `Google API Error: ${data.status}`,
+                    message: data.error_message,
+                    fallback: true,
+                    results: []
+                  }));
+                  return;
+                }
+
+                const results = (data.results || []).map(place => ({
+                  id: place.place_id,
+                  name: place.name || 'Liquor Store',
+                  lat: place.geometry?.location?.lat,
+                  lon: place.geometry?.location?.lng,
+                  address: place.vicinity || 'Coordinates locked',
+                  openNow: place.opening_hours?.open_now,
+                  source: 'Google Maps'
+                })).filter(place => place.lat !== undefined && place.lon !== undefined);
+
+                res.statusCode = 200;
+                res.end(JSON.stringify({ results }));
+
+              } catch (error) {
+                console.error('Vite Dev Server API proxy error:', error);
+                res.statusCode = 500;
+                res.end(JSON.stringify({
+                  error: 'Local API proxy execution failed',
+                  message: error.message,
+                  fallback: true,
+                  results: []
+                }));
+              }
+            } else {
+              next();
+            }
+          });
+        }
+      }
+    ]
   };
 });

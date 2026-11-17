@@ -1,5 +1,4 @@
 import pg from 'pg';
-import { getClientIp, createRateLimiter, clampStr } from '../lib/http.js';
 
 const { Pool } = pg;
 
@@ -10,8 +9,29 @@ let schemaInitialized = false;
 // Tiny in-memory database fallback for local/mock environments without DATABASE_URL
 const memoryStore = new Map();
 
-// Max 15 requests per minute per IP (best effort: per warm serverless instance)
-const isRateLimited = createRateLimiter({ windowMs: 60 * 1000, max: 15 });
+// Global cache to track request rates per IP in warm serverless containers
+const ipCache = new Map();
+const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+const MAX_REQUESTS = 15; // Maximum 15 requests per minute per IP for feedback
+
+function getClientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (forwarded) {
+    return forwarded.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || 'unknown-ip';
+}
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  if (!ipCache.has(ip)) {
+    ipCache.set(ip, []);
+  }
+  const timestamps = ipCache.get(ip).filter(time => now - time < RATE_LIMIT_WINDOW);
+  timestamps.push(now);
+  ipCache.set(ip, timestamps);
+  return timestamps.length > MAX_REQUESTS;
+}
 
 /**
  * Ensures that the required table exists and matches the deduplicated upsert schema.
@@ -78,7 +98,14 @@ async function ensureSchema(client) {
  * Main API Route Handler for crowdsourced feedback
  */
 export default async function handler(req, res) {
-  // No CORS headers: only this site's own pages call this endpoint.
+  // CORS Headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
   // Apply IP-based Rate Limiting
   const clientIp = getClientIp(req);
@@ -105,8 +132,8 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const store_id = clampStr(req.query?.store_id, 255);
-
+      const { store_id } = req.query;
+      
       if (!store_id) {
         return res.status(400).json({ success: false, error: 'Missing store_id query parameter' });
       }
@@ -186,16 +213,13 @@ export default async function handler(req, res) {
       }
 
     } else if (req.method === 'POST') {
-      const body = req.body && typeof req.body === 'object' ? req.body : {};
-      const store_id = clampStr(body.store_id, 255);
-      const status = clampStr(body.status, 10);
-      const store_name = clampStr(body.store_name, 255);
+      const { store_id, user_id, store_name, status } = req.body || {};
 
       if (!store_id || !status) {
         return res.status(400).json({ success: false, error: 'Missing store_id or status in request body' });
       }
 
-      const activeUserId = clampStr(body.user_id, 255) || 'anonymous_user';
+      const activeUserId = user_id || 'anonymous_user';
 
       if (status !== 'open' && status !== 'closed') {
         return res.status(400).json({ success: false, error: "Status must be either 'open' or 'closed'" });
