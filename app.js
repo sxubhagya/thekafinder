@@ -6,6 +6,7 @@
 // --- VERCEL ANALYTICS ---
 // --- VERCEL WEB ANALYTICS ---
 import { inject } from '@vercel/analytics';
+import { resolveStatus } from './lib/status.js';
 inject();
 
 // --- CONSTANTS & CONFIGURATION ---
@@ -13,6 +14,7 @@ const EARTH_RADIUS = 6371000; // Meters
 const DEFAULT_SEARCH_RADIUS = 2000; // Start with 2km search radius
 const MAX_SEARCH_RADIUS = 15000; // Max search radius 15km
 const AVERAGE_STEP_LENGTH = 0.75; // 1 step = 0.75 meters
+const SEARCH_REFRESH_METERS = 500; // re-search after moving this far from the last search
 
 // Admin & Mock Mode detection via URL parameter or hash secret
 const isAdminMode = window.location.search.includes('admin=true') || window.location.search.includes('mock=true') || window.location.hash === '#admin';
@@ -118,7 +120,10 @@ const state = {
   isFeedbackCooldown: false,
   isAligned: false,
   resolvedCity: '',
-  resolvedCountry: ''
+  resolvedCountry: '',
+  isSearching: false,
+  lastSearchAt: 0,
+  feedbackStats: null // { openCount, closedCount, totalCount } for the locked store, last 12 h
 };
 
 // --- DOM ELEMENTS ---
@@ -365,38 +370,44 @@ function triggerArrivalCelebration() {
 }
 
 /**
- * Resolves the shop's open status (Open, Closed, Closing Soon) based on current local time.
- * Standard Indian/local liquor store hours are 10:00 AM to 10:00 PM.
+ * Resolves the shop's open status from LIVE data (see lib/status.js):
+ *   live opening hours -> crowd votes only when they clearly disagree -> "Hours unavailable".
+ * The old hardcoded 10 AM - 10 PM guess is gone.
  */
+const STATUS_CLASS = { open: 'open', closing: 'closing-soon', closed: 'closed', neutral: 'unknown' };
+
 function getStoreOpeningStatus(store) {
-  const now = new Date();
-  const hour = now.getHours();
-  const minute = now.getMinutes();
-  
-  // If the store specifically returns open_now from Google
-  if (store.openNow === false) {
-    return {
-      text: 'Closed • Opens at 10:00 AM',
-      class: 'closed'
-    };
+  // Hours fetched for this exact place; before that arrives, use open_now from the search result.
+  const hours = store.hours || (typeof store.openNow === 'boolean' ? { openNow: store.openNow, businessStatus: store.businessStatus } : (store.businessStatus ? { businessStatus: store.businessStatus } : null));
+  const status = resolveStatus({ hours, votes: state.feedbackStats });
+  return { text: status.label, class: STATUS_CLASS[status.tone] || 'unknown', source: status.source };
+}
+
+// --- LIVE HOURS (per locked store, cached 5 min) ---
+const HOURS_TTL = 5 * 60 * 1000;
+const hoursCache = new Map(); // placeId -> { at, hours, pending }
+
+async function loadStoreHours(store) {
+  if (!store || store.source !== 'Google Maps' || typeof store.id !== 'string') return; // OSM / oasis stores have no live hours
+  const cached = hoursCache.get(store.id);
+  if (cached && (cached.pending || Date.now() - cached.at < HOURS_TTL)) {
+    if (cached.hours !== undefined && store.hours !== cached.hours) store.hours = cached.hours;
+    return;
   }
-  
-  if (hour < 10 || hour >= 22) {
-    return {
-      text: 'Closed • Opens at 10:00 AM',
-      class: 'closed'
-    };
-  } else if (hour === 21) {
-    const minsLeft = 60 - minute;
-    return {
-      text: `Closes in ${minsLeft} mins`,
-      class: 'closing-soon'
-    };
-  } else {
-    return {
-      text: 'Open Now • Closes at 10:00 PM',
-      class: 'open'
-    };
+  hoursCache.set(store.id, { at: Date.now(), pending: true, hours: cached?.hours });
+  try {
+    const res = await fetch(`/api/place-hours?place_id=${encodeURIComponent(store.id)}`);
+    if (!res.ok) throw new Error(`place-hours ${res.status}`);
+    const data = await res.json();
+    const hours = data.hours || data.businessStatus
+      ? { ...(data.hours || {}), businessStatus: data.businessStatus || undefined, utcOffsetMinutes: data.utcOffsetMinutes ?? undefined }
+      : null;
+    hoursCache.set(store.id, { at: Date.now(), hours });
+    store.hours = hours;
+    if (state.nearestStore && state.nearestStore.id === store.id) updateCompassDisplay();
+  } catch (err) {
+    console.warn('Could not load live hours; falling back to search data / crowd votes:', err);
+    hoursCache.set(store.id, { at: Date.now() - HOURS_TTL + 30000, hours: cached?.hours }); // retry in ~30 s
   }
 }
 
@@ -404,26 +415,31 @@ function getStoreOpeningStatus(store) {
 const DRY_STATES = [
   {
     name: 'Gujarat',
+    iso: 'IN-GJ',
     bbox: { minLat: 20.1, maxLat: 24.7, minLon: 68.1, maxLon: 74.5 },
     wittyMessage: "🚨 Gujarat says no! Banned since 1960. Compass needle is spinning in absolute despair. Road trip to Rajasthan or Daman? 🚗💨"
   },
   {
     name: 'Bihar',
+    iso: 'IN-BR',
     bbox: { minLat: 24.3, maxLat: 27.5, minLon: 83.3, maxLon: 88.3 },
     wittyMessage: "🚫 Nitish Kumar says hello! Bihar is dry. The compass refuses to point to anything here. Kathmandu is nice this time of year! 🏔️"
   },
   {
     name: 'Nagaland',
+    iso: 'IN-NL',
     bbox: { minLat: 25.2, maxLat: 27.1, minLon: 93.3, maxLon: 95.3 },
     wittyMessage: "🚨 Nagaland Prohibition active! No thekas here. The compass is currently pointing to a glass of water. 💧"
   },
   {
     name: 'Mizoram',
+    iso: 'IN-MZ',
     bbox: { minLat: 21.9, maxLat: 24.6, minLon: 92.2, maxLon: 93.5 },
     wittyMessage: "🚫 Mizoram is dry! The needle is spinning out of control. No alcohol sales allowed. Drink some tea! ☕"
   },
   {
     name: 'Lakshadweep',
+    iso: 'IN-LD',
     bbox: { minLat: 8.0, maxLat: 12.5, minLon: 71.0, maxLon: 74.0 },
     wittyMessage: "🌊 Lakshadweep is dry (except Bangaram Island)! The compass is drowning in sorrow. Grab a coconut instead! 🥥"
   }
@@ -453,36 +469,99 @@ const BORDER_OASES = {
   ]
 };
 
-function getDryState(lat, lon) {
-  return DRY_STATES.find(state => 
-    lat >= state.bbox.minLat && lat <= state.bbox.maxLat && 
-    lon >= state.bbox.minLon && lon <= state.bbox.maxLon
+/**
+ * Coarse rectangles. Only a FALLBACK for when reverse geocoding is unavailable:
+ * they wrongly include wet places such as Daman, Diu, Abu Road and Udaipur.
+ */
+function getDryStateByBox(lat, lon) {
+  return DRY_STATES.find(s =>
+    lat >= s.bbox.minLat && lat <= s.bbox.maxLat &&
+    lon >= s.bbox.minLon && lon <= s.bbox.maxLon
   );
+}
+
+/**
+ * Which dry state (if any) is this point really in? Uses the reverse-geocoded
+ * state, so enclaves and neighbouring states are classified correctly.
+ * Returns the DRY_STATES entry, or null when the point is in a wet region.
+ */
+async function getDryState(lat, lon) {
+  const region = await reverseGeocode(lat, lon);
+  if (!region) return getDryStateByBox(lat, lon) || null;
+  if (region.country && region.country !== 'India') return null;
+  return DRY_STATES.find(s => s.iso === region.iso || s.name.toLowerCase() === (region.state || '').toLowerCase()) || null;
+}
+
+const GEO_CACHE_PREFIX = 'theka_geo_v1:';
+const geoMemo = new Map();
+
+/**
+ * Reverse geocode with Nominatim. Cached by ~5 km cell (memory + localStorage), 3 s timeout.
+ * Returns { city, state, iso, country } or null if unavailable.
+ */
+async function reverseGeocode(lat, lon) {
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  if (geoMemo.has(key)) return geoMemo.get(key);
+  try {
+    const stored = localStorage.getItem(GEO_CACHE_PREFIX + key);
+    if (stored) { const v = JSON.parse(stored); geoMemo.set(key, v); return v; }
+  } catch (e) { /* storage unavailable */ }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10&accept-language=en`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error('Nominatim ' + res.status);
+    const data = await res.json();
+    const a = data.address || {};
+    const region = {
+      city: a.city || a.town || a.village || a.suburb || a.city_district || a.county || a.state || '',
+      state: a.state || '',
+      iso: a['ISO3166-2-lvl4'] || '',
+      country: a.country || ''
+    };
+    geoMemo.set(key, region);
+    try { localStorage.setItem(GEO_CACHE_PREFIX + key, JSON.stringify(region)); } catch (e) { /* ignore */ }
+    return region;
+  } catch (e) {
+    clearTimeout(timeoutId);
+    console.warn('Reverse geocode unavailable:', e.message);
+    return null;
+  }
+}
+
+/**
+ * The needle spins only when there is nothing to point at: a "desert" (no stores
+ * within range) or a dry state with no border oasis to suggest.
+ */
+function isSpinning() {
+  return state.isDryZone || (state.isDryState && !state.nearestStore);
 }
 
 let drySpinRequest = null;
 function runDrySpinLoop() {
-  if (!state.isDryZone) {
-    if (drySpinRequest) {
-      cancelAnimationFrame(drySpinRequest);
+  if (drySpinRequest) return; // already spinning: never stack a second loop
+
+  const tick = () => {
+    if (!isSpinning()) {
       drySpinRequest = null;
+      return;
     }
-    return;
-  }
-  
-  // Update only the spinning needle elements
-  const spinningAngle = (Date.now() / 15) % 360;
-  if (elements.liquorNeedle) {
-    elements.liquorNeedle.style.transform = `rotate(${spinningAngle}deg)`;
-  }
-  if (elements.needleDistanceLabel) {
-    elements.needleDistanceLabel.style.transform = `translateX(-50%) rotate(${-spinningAngle}deg)`;
-  }
-  if (elements.arrowIndicator) {
-    elements.arrowIndicator.style.transform = `rotate(${spinningAngle}deg)`;
-  }
-  
-  drySpinRequest = requestAnimationFrame(runDrySpinLoop);
+    // Update only the spinning needle elements
+    const spinningAngle = (Date.now() / 15) % 360;
+    if (elements.liquorNeedle) {
+      elements.liquorNeedle.style.transform = `rotate(${spinningAngle}deg)`;
+    }
+    if (elements.needleDistanceLabel) {
+      elements.needleDistanceLabel.style.transform = `translateX(-50%) rotate(${-spinningAngle}deg)`;
+    }
+    if (elements.arrowIndicator) {
+      elements.arrowIndicator.style.transform = `rotate(${spinningAngle}deg)`;
+    }
+    drySpinRequest = requestAnimationFrame(tick);
+  };
+  drySpinRequest = requestAnimationFrame(tick);
 }
 
 /**
@@ -625,6 +704,12 @@ async function loadStoreFeedback(storeId) {
     if (data.success && elements.feedbackMetricsText) {
       const stats = data.stats12h;
       const last = data.lastReport;
+
+      // Feed the open/closed chip: crowd votes only matter when they clearly disagree with live hours.
+      if (state.loadedFeedbackStoreId === storeId) {
+        state.feedbackStats = stats ? { openCount: stats.openCount, closedCount: stats.closedCount, totalCount: stats.totalCount } : null;
+        updateCompassDisplay();
+      }
       
       let text = '';
       if (stats && stats.totalCount > 0) {
@@ -941,7 +1026,10 @@ function updateCompassDisplay() {
   }
   
   // 4. Update the liquor needle and target metrics
-  if (state.isDryState || state.isDryZone) {
+  // Spin only when there is nothing to point at. In a dry STATE the needle points at the
+  // nearest border oasis (a real target), so it falls through to the normal branch below.
+  const isOasis = !!state.nearestStore && state.nearestStore.id === 'oasis';
+  if (isSpinning()) {
     elements.needleDistanceLabel.textContent = '❌';
     elements.arrowIndicator.style.color = 'var(--accent-red)';
     
@@ -1067,7 +1155,8 @@ function updateCompassDisplay() {
       const storeName = state.nearestStore.name || 'Theka';
       const address = state.nearestStore.address || '';
       elements.btnBookCab.href = `https://m.uber.com/ul/?client_id=CschlSNhiPzFV_VMeToCbrthhALuYkjyD_Ew0GCT&action=setPickup&pickup=my_location&dropoff[latitude]=${state.nearestStore.lat}&dropoff[longitude]=${state.nearestStore.lon}&dropoff[nickname]=${encodeURIComponent(storeName)}&dropoff[formatted_address]=${encodeURIComponent(address)}`;
-      elements.btnBookCab.classList.remove('disabled');
+      // A border oasis can be hundreds of km away: a cab is not the right tool.
+      elements.btnBookCab.classList.toggle('disabled', isOasis);
     }
     
     // Update Source Badge
@@ -1083,15 +1172,19 @@ function updateCompassDisplay() {
       }
     }
     
-    // Update Open Status Badge
+    // Update Open Status Badge (live hours, crowd override only on clear disagreement; hidden for oases)
     if (elements.thekaOpenStatus && elements.thekaOpenText) {
-      const status = getStoreOpeningStatus(state.nearestStore);
-      elements.thekaOpenText.textContent = status.text;
-      
-      // Reset classes and set status class
-      elements.thekaOpenStatus.className = 'theka-status-badge open-status-badge';
-      elements.thekaOpenStatus.classList.add(status.class);
-      elements.thekaOpenStatus.style.display = 'inline-flex';
+      if (isOasis) {
+        elements.thekaOpenStatus.style.display = 'none';
+      } else {
+        const status = getStoreOpeningStatus(state.nearestStore);
+        elements.thekaOpenText.textContent = status.text;
+
+        // Reset classes and set status class
+        elements.thekaOpenStatus.className = 'theka-status-badge open-status-badge';
+        elements.thekaOpenStatus.classList.add(status.class);
+        elements.thekaOpenStatus.style.display = 'inline-flex';
+      }
     }
     
     // Update Telemetry panel
@@ -1103,7 +1196,14 @@ function updateCompassDisplay() {
     const currentStoreId = state.nearestStore.id || `${state.nearestStore.lat.toFixed(5)}_${state.nearestStore.lon.toFixed(5)}`;
     if (state.loadedFeedbackStoreId !== currentStoreId) {
       state.loadedFeedbackStoreId = currentStoreId;
-      loadStoreFeedback(currentStoreId);
+      state.feedbackStats = null;
+      if (isOasis) {
+        // Votes about a store make no sense for a whole town: hide the widget.
+        if (elements.feedbackSection) elements.feedbackSection.style.display = 'none';
+      } else {
+        loadStoreFeedback(currentStoreId);
+        loadStoreHours(state.nearestStore);
+      }
     }
   } else {
     // Reset/loading state
@@ -1142,9 +1242,10 @@ function triggerVibrationPulse(duration) {
 /**
  * Dynamic fetch from our secure serverless backend proxy for Google Places.
  */
-async function fetchGooglePlacesStores(lat, lon, radius) {
+async function fetchGooglePlacesStores(lat, lon) {
   try {
-    const url = `/api/places?lat=${lat}&lon=${lon}&radius=${radius}`;
+    // The server ranks by distance (nearest first); we filter to MAX_SEARCH_RADIUS ourselves.
+    const url = `/api/places?lat=${lat}&lon=${lon}`;
     const response = await fetch(url);
     if (response.status === 429) {
       showToast('Whoa there! Too many location updates. Please wait a moment. ⏳');
@@ -1162,17 +1263,64 @@ async function fetchGooglePlacesStores(lat, lon, radius) {
 }
 
 /**
- * Queries OSM Overpass API and Google Places API to search for shops in widening radii.
+ * Treats two records as the same shop when they are on top of each other, or close and similarly named.
+ * Google Maps wins over OSM when both know the shop.
+ */
+function normalizeName(name) {
+  return (name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function dedupeStores(primary, secondary) {
+  const out = [...primary];
+  for (const s of secondary) {
+    const duplicate = primary.some(p => {
+      const d = haversineDistance(p.lat, p.lon, s.lat, s.lon);
+      if (d <= 40) return true;
+      if (d <= 150) {
+        const a = normalizeName(p.name);
+        const b = normalizeName(s.name);
+        return !!a && !!b && (a === b || a.includes(b) || b.includes(a));
+      }
+      return false;
+    });
+    if (!duplicate) out.push(s);
+  }
+  return out;
+}
+
+/**
+ * Public entry point. Only ONE search runs at a time: GPS ticks used to start
+ * overlapping searches (each up to 4 Overpass calls + Google).
  */
 async function findNearestLiquorStore(lat, lon, force = false) {
+  if (state.isSearching) return;
+  state.isSearching = true;
+  try {
+    await runStoreSearch(lat, lon, force);
+  } finally {
+    state.isSearching = false;
+    state.lastSearchAt = Date.now();
+    // Hide refresh spinner (only if not on a strict cooldown)
+    if (elements.btnRefreshTheka && !state.isRefreshCooldown) {
+      elements.btnRefreshTheka.classList.remove('spinning');
+    }
+  }
+}
+
+/**
+ * Queries Google Places (via our proxy, nearest first) and OSM Overpass, merges,
+ * de-duplicates and decides between: normal target, dry state with a border
+ * oasis, or "desert" (nothing within range).
+ */
+async function runStoreSearch(lat, lon, force) {
   // Distance-Based Caching Check
   if (!force && state.lastSearchCoords) {
     const distanceMoved = haversineDistance(lat, lon, state.lastSearchCoords.lat, state.lastSearchCoords.lon);
     if (distanceMoved < 500 && state.cachedStores.length > 0) {
       console.log(`Using cached stores. User moved ${Math.round(distanceMoved)}m (under 500m threshold).`);
       state.stores = JSON.parse(JSON.stringify(state.cachedStores));
-      
-      if (state.isDryZone) {
+
+      if (isSpinning()) {
         updateStatus('Dry Zone Detected 🌵');
         updateCompassDisplay();
         runDrySpinLoop();
@@ -1186,80 +1334,76 @@ async function findNearestLiquorStore(lat, lon, force = false) {
   }
 
   updateStatus('Locating nearby liquor stores...');
-  
-  // Show refresh spinner
-  if (elements.btnRefreshTheka) {
-    elements.btnRefreshTheka.classList.add('spinning');
-  }
-  
-  // 1. Fetch from Google Places API via our secure serverless proxy
+  if (elements.btnRefreshTheka) elements.btnRefreshTheka.classList.add('spinning');
+
+  // 1. Google Places via our secure serverless proxy (nearest first)
   let googleStores = [];
   try {
     updateStatus('Searching Google Places...');
-    googleStores = await fetchGooglePlacesStores(lat, lon, MAX_SEARCH_RADIUS);
+    googleStores = await fetchGooglePlacesStores(lat, lon);
   } catch (err) {
     console.warn('Google Places fetch failed, relying on local static stores:', err);
   }
 
-  // Calculate distances for the fetched Google Places stores
-  let googleStoresWithDistance = googleStores.map(store => {
-    const dist = haversineDistance(lat, lon, store.lat, store.lon);
-    return { ...store, distance: dist };
-  }).filter(store => store.distance <= MAX_SEARCH_RADIUS);
+  let googleStoresWithDistance = googleStores
+    .map(store => ({ ...store, distance: haversineDistance(lat, lon, store.lat, store.lon) }))
+    .filter(store => store.distance <= MAX_SEARCH_RADIUS);
 
-  // If Google Places returned nothing (e.g. key missing/failed/no results), fall back to local static stores
+  // If Google Places returned nothing (key missing / failed / no results), fall back to the static list
   if (googleStoresWithDistance.length === 0) {
     console.log('No Google Places API results. Using local static stores fallback.');
-    googleStoresWithDistance = GOOGLE_MAPS_STORES.map(store => {
-      const dist = haversineDistance(lat, lon, store.lat, store.lon);
-      return { ...store, distance: dist };
-    }).filter(store => store.distance <= MAX_SEARCH_RADIUS);
+    googleStoresWithDistance = GOOGLE_MAPS_STORES
+      .map(store => ({ ...store, distance: haversineDistance(lat, lon, store.lat, store.lon) }))
+      .filter(store => store.distance <= MAX_SEARCH_RADIUS);
   }
-  
+
+  // 2. OSM Overpass: shops in widening radii
   let osmStores = [];
-  
-  // 2. Query OSM Overpass API dynamically
-  const searchRadii = [DEFAULT_SEARCH_RADIUS, 5000, 10000, MAX_SEARCH_RADIUS];
-  for (const radius of searchRadii) {
+  for (const radius of [DEFAULT_SEARCH_RADIUS, 5000, 10000, MAX_SEARCH_RADIUS]) {
     try {
-      updateStatus(`Searching within ${radius/1000}km...`);
+      updateStatus(`Searching within ${radius / 1000}km...`);
       const results = await fetchOverpassStores(lat, lon, radius);
-      if (results && results.length > 0) {
-        osmStores = results;
-        break; // Found OSM results, don't query larger radius
-      }
+      if (results && results.length > 0) { osmStores = results; break; }
     } catch (error) {
       console.warn(`Overpass search failed at ${radius}m:`, error);
     }
   }
-  
-  // Mark OpenStreetMap sources
-  osmStores.forEach(s => {
-    s.source = 'Apple / OSM';
-  });
-  
-  // 3. Merge both databases (Foursquare/OSM + Google Maps coordinates)
-  const mergedStores = [...googleStoresWithDistance, ...osmStores];
-  
-  // Check if they are in an Indian dry state bounding box
-  const dryState = getDryState(lat, lon);
-  
+
+  // Pubs are not takeaway thekas: only offer them when nothing else exists nearby.
+  if (osmStores.length === 0 && googleStoresWithDistance.length === 0) {
+    for (const radius of [DEFAULT_SEARCH_RADIUS, 5000]) {
+      try {
+        const results = await fetchOverpassStores(lat, lon, radius, true);
+        if (results && results.length > 0) { osmStores = results; break; }
+      } catch (error) {
+        console.warn(`Overpass pub search failed at ${radius}m:`, error);
+      }
+    }
+  }
+
+  osmStores.forEach(s => { s.source = 'Apple / OSM'; });
+
+  // 3. Merge, dropping OSM records that are the same shop Google already knows
+  const mergedStores = dedupeStores(googleStoresWithDistance, osmStores);
+
+  // Which dry state (if any)? Uses the reverse-geocoded state, not rectangles.
+  const dryState = await getDryState(lat, lon);
+
   if (dryState) {
     state.isDryState = true;
     state.isDryZone = false;
-    
+    state.dryStateName = `Prohibition in ${dryState.name}`;
+    state.dryStateMessage = dryState.wittyMessage;
+
     // Find closest border oasis
     const oases = BORDER_OASES[dryState.name] || [];
     let closestOasis = null;
     let minDistance = Infinity;
     oases.forEach(oasis => {
       const dist = haversineDistance(lat, lon, oasis.lat, oasis.lon);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestOasis = oasis;
-      }
+      if (dist < minDistance) { minDistance = dist; closestOasis = oasis; }
     });
-    
+
     if (closestOasis) {
       state.nearestStore = {
         id: 'oasis',
@@ -1271,14 +1415,9 @@ async function findNearestLiquorStore(lat, lon, force = false) {
       };
       state.stores = [state.nearestStore];
       state.nearestStore.distance = minDistance;
-      
+
       updateStatus(`Prohibition in ${dryState.name} 🚨`);
-      updateCompassDisplay();
-      
-      if (drySpinRequest) {
-        cancelAnimationFrame(drySpinRequest);
-        drySpinRequest = null;
-      }
+      updateCompassDisplay(); // not spinning: the needle now points at the oasis
     } else {
       state.stores = [];
       state.nearestStore = null;
@@ -1293,14 +1432,14 @@ async function findNearestLiquorStore(lat, lon, force = false) {
     sortAndSetNearest();
     updateStatus('Theka locked on target', true);
   } else {
-    // If no stores were found anywhere:
+    // Nothing found anywhere
     if (state.isMockMode) {
       // In simulator test mode, generate mock shops around the user
       state.isDryState = false;
       state.isDryZone = false;
       loadFallbackMockStores(lat, lon);
     } else {
-      // In real GPS mode, treat as a dry zone / no stores found
+      // In real GPS mode, treat as a desert / no stores found
       state.isDryState = false;
       state.isDryZone = true;
       state.dryStateName = 'Dry Zone Detected';
@@ -1316,27 +1455,28 @@ async function findNearestLiquorStore(lat, lon, force = false) {
   // Cache results
   state.lastSearchCoords = { lat, lon };
   state.cachedStores = JSON.parse(JSON.stringify(state.stores));
-  
-  // Hide refresh spinner (only if not on a strict cooldown)
-  if (elements.btnRefreshTheka && !state.isRefreshCooldown) {
-    elements.btnRefreshTheka.classList.remove('spinning');
-  }
 }
 
 /**
  * Core HTTP Request to OSM Overpass interpreter.
  */
-async function fetchOverpassStores(lat, lon, radius) {
+async function fetchOverpassStores(lat, lon, radius, pubsOnly = false) {
   const endpoint = 'https://overpass-api.de/api/interpreter';
-  
-  // OSM tags: shop=alcohol (most common for thekas), shop=wine, shop=beverages (with alcohol=yes)
-  const query = `[out:json][timeout:15];
+
+  // OSM tags: shop=alcohol (most common for thekas), shop=wine, shop=beverages (with alcohol=yes).
+  // Pubs are only queried as a last resort (pubsOnly): they are not takeaway thekas.
+  const query = pubsOnly
+    ? `[out:json][timeout:15];
+    (
+      node["amenity"="pub"](around:${radius},${lat},${lon});
+    );
+    out body;`
+    : `[out:json][timeout:15];
     (
       node["shop"="alcohol"](around:${radius},${lat},${lon});
       node["shop"="wine"](around:${radius},${lat},${lon});
       node["shop"="liquor"](around:${radius},${lat},${lon});
       node["shop"="beverages"]["alcohol"="yes"](around:${radius},${lat},${lon});
-      node["amenity"="pub"](around:${radius},${lat},${lon});
     );
     out body;`;
     
@@ -1518,24 +1658,10 @@ async function resolveCityAndCountry(lat, lon) {
     return { city: state.resolvedCity, country: state.resolvedCountry };
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1500);
+  const region = await reverseGeocode(lat, lon);
+  state.resolvedCity = (region && region.city) || 'Unknown City';
+  state.resolvedCountry = (region && region.country) || 'Unknown Country';
 
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!res.ok) throw new Error('OSM error');
-    const data = await res.json();
-    const addr = data.address;
-    
-    state.resolvedCity = addr.city || addr.town || addr.village || addr.suburb || addr.city_district || addr.state || 'Unknown City';
-    state.resolvedCountry = addr.country || 'Unknown Country';
-  } catch (e) {
-    console.warn('Reverse geocode failed or timed out:', e);
-    state.resolvedCity = 'Unknown City';
-    state.resolvedCountry = 'Unknown Country';
-  }
-  
   return { city: state.resolvedCity, country: state.resolvedCountry };
 }
 
@@ -1791,12 +1917,26 @@ function startLocationWatching() {
       // Update coordinates
       state.userLocation.lat = newLat;
       state.userLocation.lon = newLon;
-      
-      // Perform lookup & UI updates
-      if (state.stores.length === 0) {
+
+      // Search when we have never searched, or after moving 500 m, or (when nothing was found)
+      // once a minute. Never while a search is already running, and never more than every 15 s:
+      // GPS ticks fire several times a second and used to hammer Google + Overpass in dry zones.
+      const sinceLast = Date.now() - state.lastSearchAt;
+      const moved = state.lastSearchCoords
+        ? haversineDistance(newLat, newLon, state.lastSearchCoords.lat, state.lastSearchCoords.lon)
+        : Infinity;
+      const nothingFound = state.stores.length === 0;
+      const shouldSearch = !state.isSearching && sinceLast > 15000 &&
+        (moved >= SEARCH_REFRESH_METERS || (nothingFound && sinceLast > 60000));
+
+      if (shouldSearch) {
         findNearestLiquorStore(newLat, newLon);
-      } else {
+      } else if (!nothingFound) {
         sortAndSetNearest();
+        updateCompassDisplay();
+      } else if (!state.isSearching && !state.lastSearchCoords) {
+        findNearestLiquorStore(newLat, newLon); // very first fix
+      } else {
         updateCompassDisplay();
       }
     },
@@ -2330,6 +2470,9 @@ function init() {
     });
   }
   
+  // Keep the locked store's live hours fresh (cached 5 min per place, so this is cheap)
+  setInterval(() => loadStoreHours(state.nearestStore), 60 * 1000);
+
   // Initial dial generation on startup
   generateCompassDial();
   confetti.init();

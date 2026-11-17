@@ -520,6 +520,16 @@ h1 {
   box-shadow: 0 0 8px var(--accent-red);
 }
 
+/* No live hours and no strong crowd signal: neutral, never a guess */
+.open-status-badge.unknown {
+  color: var(--text-secondary);
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+}
+.open-status-badge.unknown .status-dot {
+  background-color: var(--text-secondary);
+}
+
 .theka-info-header {
   margin-bottom: 16px;
 }
