@@ -6,6 +6,8 @@
 // --- VERCEL ANALYTICS ---
 // --- VERCEL WEB ANALYTICS ---
 import { inject } from '@vercel/analytics';
+import { resolveStatus } from './lib/status.js';
+import { buildUpiLink, normalizeAmount } from './lib/upi.js';
 inject();
 
 // --- CONSTANTS & CONFIGURATION ---
@@ -13,6 +15,7 @@ const EARTH_RADIUS = 6371000; // Meters
 const DEFAULT_SEARCH_RADIUS = 2000; // Start with 2km search radius
 const MAX_SEARCH_RADIUS = 15000; // Max search radius 15km
 const AVERAGE_STEP_LENGTH = 0.75; // 1 step = 0.75 meters
+const SEARCH_REFRESH_METERS = 500; // re-search after moving this far from the last search
 
 // Admin & Mock Mode detection via URL parameter or hash secret
 const isAdminMode = window.location.search.includes('admin=true') || window.location.search.includes('mock=true') || window.location.hash === '#admin';
@@ -118,7 +121,14 @@ const state = {
   isFeedbackCooldown: false,
   isAligned: false,
   resolvedCity: '',
-  resolvedCountry: ''
+  resolvedCountry: '',
+  isSearching: false,
+  lastSearchAt: 0,
+  sheetExpanded: false,
+  arrivedDismissed: false,
+  supportSuppressed: false,
+  upiAmount: 100,
+  feedbackStats: null // { openCount, closedCount, totalCount } for the locked store, last 12 h
 };
 
 // --- DOM ELEMENTS ---
@@ -202,7 +212,37 @@ const elements = {
   issueForm: document.getElementById('issue-form'),
   issueDetectedLocation: document.getElementById('issue-detected-location'),
   issueType: document.getElementById('issue-type'),
-  issueDescription: document.getElementById('issue-description')
+  issueDescription: document.getElementById('issue-description'),
+
+  // Bottom sheet, picker and dial
+  bottomSheet: document.getElementById('bottom-sheet'),
+  sheetHandle: document.getElementById('sheet-handle'),
+  sheetScrim: document.getElementById('sheet-scrim'),
+  btnDirections: document.getElementById('btn-directions'),
+  directionsLabel: document.getElementById('directions-label'),
+  pickerModal: document.getElementById('picker-modal'),
+  pickerTitle: document.getElementById('picker-title'),
+  pickerSub: document.getElementById('picker-sub'),
+  btnPickerCancel: document.getElementById('btn-picker-cancel'),
+  btnBookCabPicker: document.getElementById('btn-book-cab-picker'),
+  dryChipText: document.getElementById('dry-chip-text'),
+  dryTitle: document.getElementById('dry-title'),
+  dryMessage: document.getElementById('dry-message'),
+  oasisName: document.getElementById('oasis-name'),
+  oasisMeta: document.getElementById('oasis-meta'),
+  detailHours: document.getElementById('detail-hours'),
+  detailHoursSub: document.getElementById('detail-hours-sub'),
+  arrivedSub: document.getElementById('arrived-sub'),
+  btnArrivedBeer: document.getElementById('btn-arrived-beer'),
+  btnArrivedLater: document.getElementById('btn-arrived-later'),
+  btnGuideReport: document.getElementById('btn-guide-report'),
+  btnGuideBeer: document.getElementById('btn-guide-beer'),
+  upiAmounts: document.getElementById('upi-amounts'),
+  upiQr: document.getElementById('upi-qr'),
+  upiQrLink: document.getElementById('upi-qr-link'),
+  upiCaption: document.getElementById('upi-caption'),
+  copyLabel: document.getElementById('copy-label'),
+  btnOpenKofi: document.getElementById('btn-open-kofi')
 };
 
 // --- CONFETTI & SOUND SYSTEMS ---
@@ -350,53 +390,52 @@ function triggerArrivalCelebration() {
   // Shoot confetti
   confetti.spawn();
   
-  // Update status indicators in UI
-  elements.directionInstructions.textContent = 'ARRIVED! GRAB A BEER! 🍻';
-  elements.arrowIndicator.style.color = '#28a745';
-  elements.thekaStatusText.textContent = '🍻 Arrived 🍻';
-  
-  // Pulse the bottom card
-  const bottomCard = document.querySelector('.bottom-card');
-  if (bottomCard) {
-    bottomCard.style.animation = 'none';
-    void bottomCard.offsetWidth; // Reflow
-    bottomCard.style.animation = 'pulse 0.5s ease 3';
-  }
+  // The dial core and sheet switch to the arrived look on the next render
+  state.arrivedDismissed = false;
+  setSheetExpanded(false);
+  elements.thekaStatusText.textContent = 'Arrived';
+  updateStatus('Arrived');
 }
 
 /**
- * Resolves the shop's open status (Open, Closed, Closing Soon) based on current local time.
- * Standard Indian/local liquor store hours are 10:00 AM to 10:00 PM.
+ * Resolves the shop's open status from LIVE data (see lib/status.js):
+ *   live opening hours -> crowd votes only when they clearly disagree -> "Hours unavailable".
+ * The old hardcoded 10 AM - 10 PM guess is gone.
  */
+const STATUS_CLASS = { open: 'open', closing: 'closing-soon', closed: 'closed', neutral: 'unknown' };
+
 function getStoreOpeningStatus(store) {
-  const now = new Date();
-  const hour = now.getHours();
-  const minute = now.getMinutes();
-  
-  // If the store specifically returns open_now from Google
-  if (store.openNow === false) {
-    return {
-      text: 'Closed • Opens at 10:00 AM',
-      class: 'closed'
-    };
+  // Hours fetched for this exact place; before that arrives, use open_now from the search result.
+  const hours = store.hours || (typeof store.openNow === 'boolean' ? { openNow: store.openNow, businessStatus: store.businessStatus } : (store.businessStatus ? { businessStatus: store.businessStatus } : null));
+  const status = resolveStatus({ hours, votes: state.feedbackStats });
+  return { text: status.label, class: STATUS_CLASS[status.tone] || 'unknown', source: status.source };
+}
+
+// --- LIVE HOURS (per locked store, cached 5 min) ---
+const HOURS_TTL = 5 * 60 * 1000;
+const hoursCache = new Map(); // placeId -> { at, hours, pending }
+
+async function loadStoreHours(store) {
+  if (!store || store.source !== 'Google Maps' || typeof store.id !== 'string') return; // OSM / oasis stores have no live hours
+  const cached = hoursCache.get(store.id);
+  if (cached && (cached.pending || Date.now() - cached.at < HOURS_TTL)) {
+    if (cached.hours !== undefined && store.hours !== cached.hours) store.hours = cached.hours;
+    return;
   }
-  
-  if (hour < 10 || hour >= 22) {
-    return {
-      text: 'Closed • Opens at 10:00 AM',
-      class: 'closed'
-    };
-  } else if (hour === 21) {
-    const minsLeft = 60 - minute;
-    return {
-      text: `Closes in ${minsLeft} mins`,
-      class: 'closing-soon'
-    };
-  } else {
-    return {
-      text: 'Open Now • Closes at 10:00 PM',
-      class: 'open'
-    };
+  hoursCache.set(store.id, { at: Date.now(), pending: true, hours: cached?.hours });
+  try {
+    const res = await fetchWithTimeout(`/api/place-hours?place_id=${encodeURIComponent(store.id)}`, {}, 8000);
+    if (!res.ok) throw new Error(`place-hours ${res.status}`);
+    const data = await res.json();
+    const hours = data.hours || data.businessStatus
+      ? { ...(data.hours || {}), businessStatus: data.businessStatus || undefined, utcOffsetMinutes: data.utcOffsetMinutes ?? undefined }
+      : null;
+    hoursCache.set(store.id, { at: Date.now(), hours });
+    store.hours = hours;
+    if (state.nearestStore && state.nearestStore.id === store.id) updateCompassDisplay();
+  } catch (err) {
+    console.warn('Could not load live hours; falling back to search data / crowd votes:', err);
+    hoursCache.set(store.id, { at: Date.now() - HOURS_TTL + 30000, hours: cached?.hours }); // retry in ~30 s
   }
 }
 
@@ -404,26 +443,31 @@ function getStoreOpeningStatus(store) {
 const DRY_STATES = [
   {
     name: 'Gujarat',
+    iso: 'IN-GJ',
     bbox: { minLat: 20.1, maxLat: 24.7, minLon: 68.1, maxLon: 74.5 },
     wittyMessage: "🚨 Gujarat says no! Banned since 1960. Compass needle is spinning in absolute despair. Road trip to Rajasthan or Daman? 🚗💨"
   },
   {
     name: 'Bihar',
+    iso: 'IN-BR',
     bbox: { minLat: 24.3, maxLat: 27.5, minLon: 83.3, maxLon: 88.3 },
     wittyMessage: "🚫 Nitish Kumar says hello! Bihar is dry. The compass refuses to point to anything here. Kathmandu is nice this time of year! 🏔️"
   },
   {
     name: 'Nagaland',
+    iso: 'IN-NL',
     bbox: { minLat: 25.2, maxLat: 27.1, minLon: 93.3, maxLon: 95.3 },
     wittyMessage: "🚨 Nagaland Prohibition active! No thekas here. The compass is currently pointing to a glass of water. 💧"
   },
   {
     name: 'Mizoram',
+    iso: 'IN-MZ',
     bbox: { minLat: 21.9, maxLat: 24.6, minLon: 92.2, maxLon: 93.5 },
     wittyMessage: "🚫 Mizoram is dry! The needle is spinning out of control. No alcohol sales allowed. Drink some tea! ☕"
   },
   {
     name: 'Lakshadweep',
+    iso: 'IN-LD',
     bbox: { minLat: 8.0, maxLat: 12.5, minLon: 71.0, maxLon: 74.0 },
     wittyMessage: "🌊 Lakshadweep is dry (except Bangaram Island)! The compass is drowning in sorrow. Grab a coconut instead! 🥥"
   }
@@ -453,36 +497,99 @@ const BORDER_OASES = {
   ]
 };
 
-function getDryState(lat, lon) {
-  return DRY_STATES.find(state => 
-    lat >= state.bbox.minLat && lat <= state.bbox.maxLat && 
-    lon >= state.bbox.minLon && lon <= state.bbox.maxLon
+/**
+ * Coarse rectangles. Only a FALLBACK for when reverse geocoding is unavailable:
+ * they wrongly include wet places such as Daman, Diu, Abu Road and Udaipur.
+ */
+function getDryStateByBox(lat, lon) {
+  return DRY_STATES.find(s =>
+    lat >= s.bbox.minLat && lat <= s.bbox.maxLat &&
+    lon >= s.bbox.minLon && lon <= s.bbox.maxLon
   );
+}
+
+/**
+ * Which dry state (if any) is this point really in? Uses the reverse-geocoded
+ * state, so enclaves and neighbouring states are classified correctly.
+ * Returns the DRY_STATES entry, or null when the point is in a wet region.
+ */
+async function getDryState(lat, lon) {
+  const region = await reverseGeocode(lat, lon);
+  if (!region) return getDryStateByBox(lat, lon) || null;
+  if (region.country && region.country !== 'India') return null;
+  return DRY_STATES.find(s => s.iso === region.iso || s.name.toLowerCase() === (region.state || '').toLowerCase()) || null;
+}
+
+const GEO_CACHE_PREFIX = 'theka_geo_v1:';
+const geoMemo = new Map();
+
+/**
+ * Reverse geocode with Nominatim. Cached by ~5 km cell (memory + localStorage), 3 s timeout.
+ * Returns { city, state, iso, country } or null if unavailable.
+ */
+async function reverseGeocode(lat, lon) {
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  if (geoMemo.has(key)) return geoMemo.get(key);
+  try {
+    const stored = localStorage.getItem(GEO_CACHE_PREFIX + key);
+    if (stored) { const v = JSON.parse(stored); geoMemo.set(key, v); return v; }
+  } catch (e) { /* storage unavailable */ }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10&accept-language=en`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!res.ok) throw new Error('Nominatim ' + res.status);
+    const data = await res.json();
+    const a = data.address || {};
+    const region = {
+      city: a.city || a.town || a.village || a.suburb || a.city_district || a.county || a.state || '',
+      state: a.state || '',
+      iso: a['ISO3166-2-lvl4'] || '',
+      country: a.country || ''
+    };
+    geoMemo.set(key, region);
+    try { localStorage.setItem(GEO_CACHE_PREFIX + key, JSON.stringify(region)); } catch (e) { /* ignore */ }
+    return region;
+  } catch (e) {
+    clearTimeout(timeoutId);
+    console.warn('Reverse geocode unavailable:', e.message);
+    return null;
+  }
+}
+
+/**
+ * The needle spins only when there is nothing to point at: a "desert" (no stores
+ * within range) or a dry state with no border oasis to suggest.
+ */
+function isSpinning() {
+  return state.isDryZone || (state.isDryState && !state.nearestStore);
 }
 
 let drySpinRequest = null;
 function runDrySpinLoop() {
-  if (!state.isDryZone) {
-    if (drySpinRequest) {
-      cancelAnimationFrame(drySpinRequest);
+  if (drySpinRequest) return; // already spinning: never stack a second loop
+
+  const tick = () => {
+    if (!isSpinning()) {
       drySpinRequest = null;
+      return;
     }
-    return;
-  }
-  
-  // Update only the spinning needle elements
-  const spinningAngle = (Date.now() / 15) % 360;
-  if (elements.liquorNeedle) {
-    elements.liquorNeedle.style.transform = `rotate(${spinningAngle}deg)`;
-  }
-  if (elements.needleDistanceLabel) {
-    elements.needleDistanceLabel.style.transform = `translateX(-50%) rotate(${-spinningAngle}deg)`;
-  }
-  if (elements.arrowIndicator) {
-    elements.arrowIndicator.style.transform = `rotate(${spinningAngle}deg)`;
-  }
-  
-  drySpinRequest = requestAnimationFrame(runDrySpinLoop);
+    // Update only the spinning needle elements
+    const spinningAngle = (Date.now() / 15) % 360;
+    if (elements.liquorNeedle) {
+      elements.liquorNeedle.style.transform = `rotate(${spinningAngle}deg)`;
+    }
+    if (elements.needleDistanceLabel) {
+      elements.needleDistanceLabel.style.transform = `translateX(-50%) rotate(${-spinningAngle}deg)`;
+    }
+    if (elements.arrowIndicator) {
+      elements.arrowIndicator.style.transform = `rotate(${spinningAngle}deg)`;
+    }
+    drySpinRequest = requestAnimationFrame(tick);
+  };
+  drySpinRequest = requestAnimationFrame(tick);
 }
 
 /**
@@ -611,7 +718,7 @@ async function loadStoreFeedback(storeId) {
   }
   
   if (elements.feedbackMetricsText) {
-    elements.feedbackMetricsText.textContent = 'Loading user reports... ⏳';
+    elements.feedbackMetricsText.textContent = 'Loading reports...';
   }
 
   try {
@@ -625,15 +732,21 @@ async function loadStoreFeedback(storeId) {
     if (data.success && elements.feedbackMetricsText) {
       const stats = data.stats12h;
       const last = data.lastReport;
+
+      // Feed the open/closed chip: crowd votes only matter when they clearly disagree with live hours.
+      if (state.loadedFeedbackStoreId === storeId) {
+        state.feedbackStats = stats ? { openCount: stats.openCount, closedCount: stats.closedCount, totalCount: stats.totalCount } : null;
+        updateCompassDisplay();
+      }
       
       let text = '';
       if (stats && stats.totalCount > 0) {
         const timeAgoText = last ? getTimeAgo(new Date(last.createdAt)) : '';
-        const pctText = `👍 ${stats.openPercentage}% users reported open in last 12 hrs (${stats.openCount} of ${stats.totalCount} reports)`;
-        const lastReportText = last ? `\n(Last reported ${last.status} ${timeAgoText})` : '';
+        const pctText = `${stats.openPercentage}% say open · ${stats.openCount} of ${stats.totalCount} reports in the last 12 hrs.`;
+        const lastReportText = last ? `\nLast report: ${last.status}, ${timeAgoText}.` : '';
         text = `${pctText}${lastReportText}`;
       } else {
-        text = 'No user updates in last 12 hours. Be the first to report! 🍻';
+        text = 'No reports in the last 12 hours. Be the first.';
       }
       
       elements.feedbackMetricsText.textContent = text;
@@ -646,7 +759,7 @@ async function loadStoreFeedback(storeId) {
       if (localData) {
         elements.feedbackMetricsText.textContent = localData;
       } else {
-        elements.feedbackMetricsText.textContent = 'Be the first to report store status! 🍻';
+        elements.feedbackMetricsText.textContent = 'Be the first to report this shop.';
       }
     }
   }
@@ -674,7 +787,7 @@ function getLocalStoreFeedback(storeId) {
     if (local) {
       const { status, time } = JSON.parse(local);
       const timeAgoText = getTimeAgo(new Date(time));
-      return `Last reported ${status} ${timeAgoText} (locally saved) 📍`;
+      return `Last report: ${status}, ${timeAgoText} (saved on this device).`;
     }
   } catch (e) {
     console.error(e);
@@ -835,84 +948,52 @@ function getCardinalDirection(angle) {
  */
 function generateCompassDial() {
   const center = 250;
-  const outerRadius = 220;
+  const outerRadius = 240;
+  const cardinals = { 0: 'N', 90: 'E', 180: 'S', 270: 'W' };
   let svgContent = '';
-  
-  // Outer circle ring
-  svgContent += `<circle cx="${center}" cy="${center}" r="${outerRadius}" stroke="rgba(255,255,255,0.08)" stroke-width="1.5" fill="none" />`;
-  
-  // Generate 360 tick marks
-  // To avoid cluttered rendering, we draw ticks every 2 degrees
+
+  // Hairline ring
+  svgContent += `<circle cx="${center}" cy="${center}" r="${outerRadius}" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" fill="none" />`;
+
+  // Tick marks every 2 degrees, heavier at 5 / 10 / 30 / 90
   for (let angle = 0; angle < 360; angle += 2) {
     const rad = (angle - 90) * Math.PI / 180;
-    let height = 6;
-    let strokeWidth = 0.75;
+    let height = 5;
+    let strokeWidth = 0.9;
     let strokeColor = 'rgba(255, 255, 255, 0.3)';
-    
-    if (angle % 30 === 0) {
-      height = 18;
-      strokeWidth = 2.5;
-      strokeColor = '#ffffff';
+
+    if (angle % 90 === 0) {
+      height = 24; strokeWidth = 3.5; strokeColor = '#ffffff';
+    } else if (angle % 30 === 0) {
+      height = 17; strokeWidth = 2.75; strokeColor = 'rgba(255, 255, 255, 0.92)';
     } else if (angle % 10 === 0) {
-      height = 12;
-      strokeWidth = 1.75;
-      strokeColor = 'rgba(255, 255, 255, 0.8)';
+      height = 11; strokeWidth = 1.9; strokeColor = 'rgba(255, 255, 255, 0.72)';
     } else if (angle % 5 === 0) {
-      height = 9;
-      strokeWidth = 1.25;
-      strokeColor = 'rgba(255, 255, 255, 0.5)';
+      height = 8; strokeWidth = 1.4; strokeColor = 'rgba(255, 255, 255, 0.5)';
     }
-    
-    // Custom style for North marker
+
+    let cls = '';
     if (angle === 0) {
       strokeColor = varName('--accent-red', '#ff3b30');
+      cls = ' class="north"';
     }
-    
+
     const x1 = center + (outerRadius - height) * Math.cos(rad);
     const y1 = center + (outerRadius - height) * Math.sin(rad);
     const x2 = center + outerRadius * Math.cos(rad);
     const y2 = center + outerRadius * Math.sin(rad);
-    
-    svgContent += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
-    
-    // Add text labels for major angles
-    if (angle % 30 === 0) {
-      const textRadius = outerRadius - 38;
+    svgContent += `<line${cls} x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
+
+    // Cardinal letters only: degree numbers around the ring were noise.
+    if (cardinals[angle]) {
+      const textRadius = outerRadius - 50;
       const tx = center + textRadius * Math.cos(rad);
-      const ty = center + textRadius * Math.sin(rad) + 5; // Slight vertical offset to center align text
-      
-      let label = angle;
-      let labelColor = 'rgba(255,255,255,0.6)';
-      let labelWeight = '300';
-      let labelSize = '14px';
-      
-      // Cardinal directions override degrees
-      if (angle === 0) {
-        label = 'N';
-        labelColor = '#ff3b30';
-        labelWeight = '700';
-        labelSize = '18px';
-      } else if (angle === 90) {
-        label = 'E';
-        labelColor = '#ffffff';
-        labelWeight = '600';
-        labelSize = '16px';
-      } else if (angle === 180) {
-        label = 'S';
-        labelColor = '#ffffff';
-        labelWeight = '600';
-        labelSize = '16px';
-      } else if (angle === 270) {
-        label = 'W';
-        labelColor = '#ffffff';
-        labelWeight = '600';
-        labelSize = '16px';
-      }
-      
-      svgContent += `<text x="${tx}" y="${ty}" fill="${labelColor}" font-family="${varName('--font-family-main')}" font-size="${labelSize}" font-weight="${labelWeight}" text-anchor="middle">${label}</text>`;
+      const ty = center + textRadius * Math.sin(rad);
+      const isNorth = angle === 0;
+      svgContent += `<text x="${tx.toFixed(2)}" y="${ty.toFixed(2)}" fill="${isNorth ? '#ff3b30' : 'rgba(255,255,255,0.78)'}" font-family="${varName('--font-family-main')}" font-size="${isNorth ? 30 : 26}" font-weight="${isNorth ? 700 : 600}" text-anchor="middle" dominant-baseline="central">${cardinals[angle]}</text>`;
     }
   }
-  
+
   elements.dialSvg.innerHTML = svgContent;
 }
 
@@ -922,82 +1003,136 @@ function varName(cssVar, fallback) {
 }
 
 /**
+ * What the dial and sheet are showing:
+ *   view  target | arrived | dry   (which block of the sheet)
+ *   tone  amber | green | red      (accent colour for dial, bottle, core)
+ *   core  arrow | beer | drop      (icon in the middle of the dial)
+ */
+function setScreenMode({ view, tone, core, spin = false, oasis = false }) {
+  const d = elements.compassScreen.dataset;
+  d.view = view;
+  d.tone = tone;
+  d.core = core;
+  d.spin = spin ? '1' : '0';
+  d.oasis = oasis ? '1' : '0';
+  d.support = state.supportSuppressed ? '0' : '1';
+}
+
+/** "Madhuloka Liquor Boutique" -> "Madhuloka". Keeps the full name when trimming would leave nothing useful. */
+function shortName(name) {
+  const full = (name || '').replace(/\s*\(.*?\)\s*$/, '').trim();
+  if (full.length <= 22) return full || 'the theka';
+  const cleaned = full.replace(/\b(liquor|wines?|beer|shop|store|stores|boutique|bar|theka|and|&)\b.*$/i, '').trim();
+  const vague = /^(government|govt\.?|state|new|the|old|city|royal|super|national|punjab|delhi)$/i;
+  return cleaned.length >= 3 && !vague.test(cleaned) ? cleaned : full;
+}
+
+/** "Border Oasis: Daman (Union Territory)" -> "Daman" */
+function oasisShortName(name) {
+  return (name || '').replace(/^Border Oasis:\s*/i, '').replace(/\s*\(.*\)\s*$/, '').trim() || 'the border';
+}
+
+function formatDistance(meters) {
+  return meters >= 1000 ? `${(meters / 1000).toFixed(meters >= 10000 ? 0 : 1)} km` : `${Math.round(meters)} m`;
+}
+
+/** "about 9 minutes on foot" up to an hour, otherwise a plain distance. */
+function walkingLabel(meters) {
+  const minutes = Math.max(1, Math.round(meters / 80)); // ~4.8 km/h
+  if (minutes < 60) return `${formatDistance(meters)} · about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} on foot`;
+  return `${formatDistance(meters)} away`;
+}
+
+/** Live / crowd / unknown sub-line under the hours row. */
+function hoursSubline(store, status) {
+  if (status.source === 'google') {
+    const cached = hoursCache.get(store.id);
+    if (cached && cached.hours && cached.at) {
+      const mins = Math.floor((Date.now() - cached.at) / 60000);
+      return { text: `Live · Google · ${mins < 1 ? 'just now' : `${mins} min ago`}`, live: true };
+    }
+    return { text: 'From the Google search', live: false };
+  }
+  if (status.source === 'crowd') return { text: 'Based on crowd reports', live: false };
+  return { text: 'No live hours for this shop', live: false };
+}
+
+function setLinkEnabled(el, enabled) {
+  if (el) el.classList.toggle('disabled', !enabled);
+}
+
+/**
  * Refreshes UI based on the current heading and geolocation.
  */
 function updateCompassDisplay() {
   // 1. Rotate the compass dial (North points up, so dial rotates counter to heading)
   elements.compassDial.style.transform = `rotate(${-state.heading}deg)`;
-  
-  // 2. Update heading text row
-  const currentHeadingInt = Math.round(state.heading);
+
+  // 2. Heading readout
+  const currentHeadingInt = Math.round(state.heading) % 360;
   elements.headingVal.textContent = currentHeadingInt;
   elements.headingDir.textContent = getCardinalDirection(currentHeadingInt);
-  
-  // 3. Update location coordinates
+
+  // 3. Coordinates (live in the expanded sheet)
   elements.locationText.textContent = formatCoordinates(state.userLocation.lat, state.userLocation.lon);
-  
+
   if (elements.btnEmergencySos && state.userLocation.lat && state.userLocation.lon) {
     elements.btnEmergencySos.classList.remove('disabled');
   }
-  
-  // 4. Update the liquor needle and target metrics
-  if (state.isDryState || state.isDryZone) {
-    elements.needleDistanceLabel.textContent = '❌';
-    elements.arrowIndicator.style.color = 'var(--accent-red)';
-    
-    // Update bottom card panel
-    elements.thekaName.textContent = state.dryStateName || 'Dry Zone Detected';
-    elements.thekaAddress.textContent = state.dryStateMessage || 'Prohibition is active here.';
-    
-    // Reset standard metrics
-    elements.metricDistance.textContent = '--';
-    elements.metricDistanceUnit.textContent = '';
-    elements.metricSteps.textContent = '--';
-    elements.directionInstructions.textContent = '🚫 Dry Zone! Compass is spinning in grief.';
-    
-    if (elements.btnAppleMaps) elements.btnAppleMaps.classList.add('disabled');
-    if (elements.btnGoogleMaps) elements.btnGoogleMaps.classList.add('disabled');
-    if (elements.btnBookCab) elements.btnBookCab.classList.add('disabled');
-    if (elements.thekaSourceBadge) elements.thekaSourceBadge.style.display = 'none';
+
+  // 4. Needle + sheet. Spin only when there is nothing to point at. In a dry STATE the bottle points
+  //    at the nearest border oasis (a real target), so it falls through to the normal branch below.
+  const store = state.nearestStore;
+  const isOasis = !!store && store.id === 'oasis';
+
+  if (isSpinning()) {
+    const region = (state.dryStateName || '').replace(/^Prohibition in /, '');
+    setScreenMode({ view: 'dry', tone: 'red', core: 'drop', spin: true });
+    elements.dryChipText.textContent = state.isDryState && region ? `Prohibition · ${region}` : 'Dry zone';
+    elements.dryTitle.textContent = state.isDryState ? 'Compass is spinning in grief' : 'Nothing within 15 km';
+    elements.dryMessage.textContent = state.dryStateMessage || 'Prohibition is active here.';
+    elements.directionInstructions.textContent = 'Dry zone';
+
+    setLinkEnabled(elements.btnDirections, false);
+    setLinkEnabled(elements.btnAppleMaps, false);
+    setLinkEnabled(elements.btnGoogleMaps, false);
+    setLinkEnabled(elements.btnBookCab, false);
+    setLinkEnabled(elements.btnBookCabPicker, false);
     if (elements.thekaOpenStatus) elements.thekaOpenStatus.style.display = 'none';
     if (elements.feedbackSection) elements.feedbackSection.style.display = 'none';
+    if (elements.thekaSourceBadge) elements.thekaSourceBadge.textContent = '--';
     state.loadedFeedbackStoreId = null;
-    
-    // Telemetry
+
     elements.telemetryThekaPos.textContent = 'PROHIBITED';
     elements.telemetryBearing.textContent = 'SPIN';
     elements.telemetryRelBearing.textContent = 'SPIN';
-  } else if (state.nearestStore) {
-    const bearing = calculateBearing(
-      state.userLocation.lat, state.userLocation.lon,
-      state.nearestStore.lat, state.nearestStore.lon
-    );
-    
-    const distance = haversineDistance(
-      state.userLocation.lat, state.userLocation.lon,
-      state.nearestStore.lat, state.nearestStore.lon
-    );
-    
+  } else if (store) {
+    const bearing = calculateBearing(state.userLocation.lat, state.userLocation.lon, store.lat, store.lon);
+    const distance = haversineDistance(state.userLocation.lat, state.userLocation.lon, store.lat, store.lon);
     const steps = Math.round(distance / AVERAGE_STEP_LENGTH);
-    
+
     // Absolute angle in viewport is (bearing - heading)
     const relativeAngle = (bearing - state.heading + 360) % 360;
     elements.liquorNeedle.style.transform = `rotate(${relativeAngle}deg)`;
-    
-    // Rotate the inner label back so it stays upright/legible
-    elements.needleDistanceLabel.style.transform = `translateX(-50%) rotate(${-relativeAngle}deg)`;
-    
-    // Set distance label text on the needle
-    if (distance >= 1000) {
-      elements.needleDistanceLabel.textContent = `${(distance / 1000).toFixed(1)} km`;
-    } else {
-      elements.needleDistanceLabel.textContent = `${Math.round(distance)} m`;
+    elements.arrowIndicator.style.transform = `rotate(${relativeAngle}deg)`;
+
+    // Aligned at < 5 deg, released at >= 8 deg so the state does not chatter
+    let aligned = state.isAligned || false;
+    if (relativeAngle < 5 || relativeAngle > 355) aligned = true;
+    else if (relativeAngle >= 8 && relativeAngle <= 352) aligned = false;
+    state.isAligned = aligned;
+
+    // Arrival: inside 5 m. Stays arrived until the user is clearly walking away (> 15 m).
+    if (distance <= 5 && !state.hasArrivedAtCurrentStore) {
+      state.hasArrivedAtCurrentStore = true;
+      triggerArrivalCelebration();
+    } else if (distance > 15) {
+      state.hasArrivedAtCurrentStore = false;
     }
-    
-    // Update bottom card panel
-    elements.thekaName.textContent = state.nearestStore.name;
-    elements.thekaAddress.textContent = state.nearestStore.address || 'Address unknown';
-    
+    const arrived = state.hasArrivedAtCurrentStore;
+    if (!arrived) state.arrivedDismissed = false;
+
+    // Distance and steps
     if (distance >= 1000) {
       elements.metricDistance.textContent = (distance / 1000).toFixed(2);
       elements.metricDistanceUnit.textContent = 'km';
@@ -1006,123 +1141,165 @@ function updateCompassDisplay() {
       elements.metricDistanceUnit.textContent = 'm';
     }
     elements.metricSteps.textContent = steps.toLocaleString();
-    
-    // Update Direction helper arrow and text instructions
-    // Center arrow alignment: points relative to phone orientation
-    elements.arrowIndicator.style.transform = `rotate(${relativeAngle}deg)`;
-    
-    let directionText = '';
-    const needlePointer = document.querySelector('.liquor-pointer');
-    
-    // We enter aligned state at < 5 deg, and leave at >= 8 deg to prevent chattering/glitching
-    let isCurrentlyAligned = state.isAligned || false;
-    if (relativeAngle < 5 || relativeAngle > 355) {
-      isCurrentlyAligned = true;
-    } else if (relativeAngle >= 8 && relativeAngle <= 352) {
-      isCurrentlyAligned = false;
-    }
-    state.isAligned = isCurrentlyAligned;
+    elements.thekaName.textContent = store.name;
+    elements.thekaAddress.textContent = store.address || 'Address unknown';
 
-    if (isCurrentlyAligned || distance <= 5) {
-      directionText = 'Straight ahead! Go get it! 🍻';
-      elements.arrowIndicator.style.color = '#28a745'; // Green
-      triggerVibrationPulse(150); // Light haptic tick
-      if (needlePointer) needlePointer.classList.add('aligned');
+    // Mode, core text and haptics
+    let directionText;
+    if (arrived) {
+      directionText = "You're here";
+    } else if (aligned) {
+      directionText = 'Straight ahead';
+      triggerVibrationPulse(150); // light haptic tick
+    } else if (relativeAngle <= 180) {
+      directionText = `Turn ${Math.round(relativeAngle)}° right`;
     } else {
-      if (needlePointer) needlePointer.classList.remove('aligned');
-      if (relativeAngle <= 180) {
-        directionText = `Turn ${Math.round(relativeAngle)}° to your right`;
-        elements.arrowIndicator.style.color = 'var(--accent-amber)';
-      } else {
-        directionText = `Turn ${Math.round(360 - relativeAngle)}° to your left`;
-        elements.arrowIndicator.style.color = 'var(--accent-amber)';
-      }
+      directionText = `Turn ${Math.round(360 - relativeAngle)}° left`;
     }
-    
-    // Check if user has arrived at the store (within 5 meters)
-    if (distance <= 5) {
-      if (needlePointer) needlePointer.classList.add('aligned');
-      if (!state.hasArrivedAtCurrentStore) {
-        state.hasArrivedAtCurrentStore = true;
-        triggerArrivalCelebration();
-      }
+    elements.directionInstructions.textContent = directionText;
+
+    if (isOasis) {
+      const region = (state.dryStateName || '').replace(/^Prohibition in /, '') || 'this state';
+      const town = oasisShortName(store.name);
+      setScreenMode({ view: 'dry', tone: aligned ? 'green' : 'red', core: 'arrow', oasis: true });
+      elements.dryChipText.textContent = `Prohibition · ${region}`;
+      elements.dryTitle.textContent = `No thekas in ${region}`;
+      elements.dryMessage.textContent = 'Follow the bottle. The nearest wet town is a road trip away.';
+      elements.oasisName.textContent = `Border oasis · ${town}`;
+      elements.oasisMeta.textContent = `Nearest wet town · ${formatDistance(distance)}`;
+      elements.directionsLabel.textContent = `Directions to ${town}`;
     } else {
-      elements.directionInstructions.textContent = directionText;
-      // Reset arrival flag if they walk away
-      if (distance > 15) {
-        state.hasArrivedAtCurrentStore = false;
-      }
+      setScreenMode({
+        view: arrived && !state.arrivedDismissed ? 'arrived' : 'target',
+        tone: arrived || aligned ? 'green' : 'amber',
+        core: arrived ? 'beer' : 'arrow'
+      });
+      elements.directionsLabel.textContent = 'Directions';
+      const arrivedStatus = getStoreOpeningStatus(store);
+      elements.arrivedSub.textContent = arrivedStatus.class === 'unknown' ? store.name : `${store.name} · ${arrivedStatus.text}`;
     }
-    
-    // Update Maps Action Redirect Links
-    if (elements.btnAppleMaps) {
-      elements.btnAppleMaps.href = `https://maps.apple.com/?daddr=${state.nearestStore.lat},${state.nearestStore.lon}&dirflg=w`;
-      elements.btnAppleMaps.classList.remove('disabled');
-    }
-    if (elements.btnGoogleMaps) {
-      elements.btnGoogleMaps.href = `https://www.google.com/maps/search/?api=1&query=${state.nearestStore.lat},${state.nearestStore.lon}`;
-      elements.btnGoogleMaps.classList.remove('disabled');
-    }
-    if (elements.btnBookCab) {
-      const storeName = state.nearestStore.name || 'Theka';
-      const address = state.nearestStore.address || '';
-      elements.btnBookCab.href = `https://m.uber.com/ul/?client_id=CschlSNhiPzFV_VMeToCbrthhALuYkjyD_Ew0GCT&action=setPickup&pickup=my_location&dropoff[latitude]=${state.nearestStore.lat}&dropoff[longitude]=${state.nearestStore.lon}&dropoff[nickname]=${encodeURIComponent(storeName)}&dropoff[formatted_address]=${encodeURIComponent(address)}`;
-      elements.btnBookCab.classList.remove('disabled');
-    }
-    
-    // Update Source Badge
-    if (elements.thekaSourceBadge) {
-      elements.thekaSourceBadge.textContent = state.nearestStore.source || 'OSM';
-      elements.thekaSourceBadge.style.display = 'inline-block';
-      if (state.nearestStore.source === 'Google Maps') {
-        elements.thekaSourceBadge.style.background = 'rgba(66, 133, 244, 0.15)';
-        elements.thekaSourceBadge.style.color = '#4285F4';
-      } else {
-        elements.thekaSourceBadge.style.background = 'rgba(255, 183, 3, 0.15)';
-        elements.thekaSourceBadge.style.color = 'var(--accent-amber)';
-      }
-    }
-    
-    // Update Open Status Badge
-    if (elements.thekaOpenStatus && elements.thekaOpenText) {
-      const status = getStoreOpeningStatus(state.nearestStore);
+
+    // Directions picker: title, sub-line and links
+    elements.pickerTitle.textContent = `Get to ${isOasis ? oasisShortName(store.name) : shortName(store.name)}`;
+    elements.pickerSub.textContent = isOasis ? `${formatDistance(distance)} · a road trip` : walkingLabel(distance);
+    elements.btnAppleMaps.href = `https://maps.apple.com/?daddr=${store.lat},${store.lon}&dirflg=${isOasis ? 'd' : 'w'}`;
+    elements.btnGoogleMaps.href = `https://www.google.com/maps/search/?api=1&query=${store.lat},${store.lon}`;
+    const cabHref = `https://m.uber.com/ul/?client_id=CschlSNhiPzFV_VMeToCbrthhALuYkjyD_Ew0GCT&action=setPickup&pickup=my_location&dropoff[latitude]=${store.lat}&dropoff[longitude]=${store.lon}&dropoff[nickname]=${encodeURIComponent(store.name || 'Theka')}&dropoff[formatted_address]=${encodeURIComponent(store.address || '')}`;
+    [elements.btnBookCab, elements.btnBookCabPicker].forEach(a => { if (a) a.href = cabHref; });
+    setLinkEnabled(elements.btnDirections, true);
+    setLinkEnabled(elements.btnAppleMaps, true);
+    setLinkEnabled(elements.btnGoogleMaps, true);
+    // A border oasis can be hundreds of km away: a cab is not the right tool.
+    setLinkEnabled(elements.btnBookCab, !isOasis);
+    setLinkEnabled(elements.btnBookCabPicker, !isOasis);
+
+    // Source row
+    if (elements.thekaSourceBadge) elements.thekaSourceBadge.textContent = store.source || 'OSM';
+
+    // Open / closed chip and the Hours row (live hours, crowd override only on clear disagreement)
+    if (isOasis) {
+      if (elements.thekaOpenStatus) elements.thekaOpenStatus.style.display = 'none';
+    } else {
+      const status = getStoreOpeningStatus(store);
       elements.thekaOpenText.textContent = status.text;
-      
-      // Reset classes and set status class
-      elements.thekaOpenStatus.className = 'theka-status-badge open-status-badge';
-      elements.thekaOpenStatus.classList.add(status.class);
+      elements.thekaOpenStatus.className = `status-chip open-status-badge ${status.class}`;
       elements.thekaOpenStatus.style.display = 'inline-flex';
+
+      elements.detailHours.textContent = status.text;
+      const sub = hoursSubline(store, status);
+      elements.detailHoursSub.textContent = sub.text;
+      elements.detailHoursSub.classList.toggle('live', sub.live);
     }
-    
-    // Update Telemetry panel
-    elements.telemetryThekaPos.textContent = `${state.nearestStore.lat.toFixed(5)}, ${state.nearestStore.lon.toFixed(5)}`;
+
+    // Telemetry
+    elements.telemetryThekaPos.textContent = `${store.lat.toFixed(5)}, ${store.lon.toFixed(5)}`;
     elements.telemetryBearing.textContent = `${Math.round(bearing)}°`;
     elements.telemetryRelBearing.textContent = `${Math.round(relativeAngle)}°`;
 
-    // Only load feedback once per store to prevent network request spamming
-    const currentStoreId = state.nearestStore.id || `${state.nearestStore.lat.toFixed(5)}_${state.nearestStore.lon.toFixed(5)}`;
+    // Load votes and live hours once per store (no request spamming)
+    const currentStoreId = store.id || `${store.lat.toFixed(5)}_${store.lon.toFixed(5)}`;
     if (state.loadedFeedbackStoreId !== currentStoreId) {
       state.loadedFeedbackStoreId = currentStoreId;
-      loadStoreFeedback(currentStoreId);
+      state.feedbackStats = null;
+      if (isOasis) {
+        // Votes about a store make no sense for a whole town: hide the widget.
+        if (elements.feedbackSection) elements.feedbackSection.style.display = 'none';
+      } else {
+        loadStoreFeedback(currentStoreId);
+        loadStoreHours(store);
+      }
     }
   } else {
-    // Reset/loading state
+    // Searching / nothing yet
+    setScreenMode({ view: 'target', tone: 'amber', core: 'arrow' });
     elements.liquorNeedle.style.transform = 'rotate(0deg)';
-    elements.needleDistanceLabel.textContent = '-- m';
     elements.thekaName.textContent = 'Searching...';
+    elements.thekaAddress.textContent = 'Looking for the nearest theka';
     elements.metricDistance.textContent = '--';
+    elements.metricDistanceUnit.textContent = '';
     elements.metricSteps.textContent = '--';
-    if (elements.btnAppleMaps) elements.btnAppleMaps.classList.add('disabled');
-    if (elements.btnGoogleMaps) elements.btnGoogleMaps.classList.add('disabled');
-    if (elements.btnBookCab) elements.btnBookCab.classList.add('disabled');
-    if (elements.thekaSourceBadge) elements.thekaSourceBadge.style.display = 'none';
+    elements.directionInstructions.textContent = 'Stand still to calibrate';
+    [elements.btnDirections, elements.btnAppleMaps, elements.btnGoogleMaps, elements.btnBookCab, elements.btnBookCabPicker]
+      .forEach(el => setLinkEnabled(el, false));
+    if (elements.thekaSourceBadge) elements.thekaSourceBadge.textContent = '--';
     if (elements.thekaOpenStatus) elements.thekaOpenStatus.style.display = 'none';
     if (elements.feedbackSection) elements.feedbackSection.style.display = 'none';
     state.loadedFeedbackStoreId = null;
   }
-  
-  // Update Simulator telemetry
+
+  // Simulator telemetry
   elements.telemetryUserPos.textContent = `${state.userLocation.lat.toFixed(5)}, ${state.userLocation.lon.toFixed(5)}`;
+}
+
+// --- BOTTOM SHEET & DIRECTIONS PICKER ---
+
+function setSheetExpanded(expanded) {
+  state.sheetExpanded = expanded;
+  elements.bottomSheet.classList.toggle('expanded', expanded);
+  elements.sheetScrim.classList.toggle('visible', expanded);
+  elements.sheetHandle.setAttribute('aria-expanded', String(expanded));
+  elements.sheetHandle.setAttribute('aria-label', expanded ? 'Hide details' : 'Show more details');
+  if (!expanded) elements.bottomSheet.scrollTop = 0;
+}
+
+function setPickerOpen(open) {
+  if (!elements.pickerModal) return;
+  elements.pickerModal.classList.toggle('hidden', !open);
+}
+
+function initSheet() {
+  elements.sheetHandle.addEventListener('click', () => setSheetExpanded(!state.sheetExpanded));
+  elements.sheetScrim.addEventListener('click', () => setSheetExpanded(false));
+
+  // Swipe up to open, swipe down (from the top of the sheet) to close
+  let startY = null;
+  elements.bottomSheet.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+  elements.bottomSheet.addEventListener('touchend', (e) => {
+    if (startY === null) return;
+    const dy = e.changedTouches[0].clientY - startY;
+    startY = null;
+    if (!state.sheetExpanded && dy < -40) setSheetExpanded(true);
+    else if (state.sheetExpanded && dy > 60 && elements.bottomSheet.scrollTop <= 0) setSheetExpanded(false);
+  }, { passive: true });
+
+  // Directions picker
+  elements.btnDirections.addEventListener('click', () => {
+    if (elements.btnDirections.classList.contains('disabled')) return;
+    setPickerOpen(true);
+  });
+  elements.btnPickerCancel.addEventListener('click', () => setPickerOpen(false));
+  elements.pickerModal.addEventListener('click', (e) => {
+    if (e.target === elements.pickerModal) setPickerOpen(false);
+  });
+  [elements.btnAppleMaps, elements.btnGoogleMaps, elements.btnBookCabPicker].forEach(a => {
+    if (a) a.addEventListener('click', () => setTimeout(() => setPickerOpen(false), 150));
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!elements.pickerModal.classList.contains('hidden')) setPickerOpen(false);
+    else if (state.sheetExpanded) setSheetExpanded(false);
+  });
 }
 
 /**
@@ -1142,10 +1319,21 @@ function triggerVibrationPulse(duration) {
 /**
  * Dynamic fetch from our secure serverless backend proxy for Google Places.
  */
-async function fetchGooglePlacesStores(lat, lon, radius) {
+/**
+ * fetch() that gives up after `ms` instead of hanging. A stalled request must never wedge the
+ * single-flight store search, which would leave the compass on "Searching..." forever.
+ */
+function fetchWithTimeout(url, options = {}, ms = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
+async function fetchGooglePlacesStores(lat, lon) {
   try {
-    const url = `/api/places?lat=${lat}&lon=${lon}&radius=${radius}`;
-    const response = await fetch(url);
+    // The server ranks by distance (nearest first); we filter to MAX_SEARCH_RADIUS ourselves.
+    const url = `/api/places?lat=${lat}&lon=${lon}`;
+    const response = await fetchWithTimeout(url, {}, 10000);
     if (response.status === 429) {
       showToast('Whoa there! Too many location updates. Please wait a moment. ⏳');
       throw new Error('Rate limited');
@@ -1162,17 +1350,64 @@ async function fetchGooglePlacesStores(lat, lon, radius) {
 }
 
 /**
- * Queries OSM Overpass API and Google Places API to search for shops in widening radii.
+ * Treats two records as the same shop when they are on top of each other, or close and similarly named.
+ * Google Maps wins over OSM when both know the shop.
+ */
+function normalizeName(name) {
+  return (name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function dedupeStores(primary, secondary) {
+  const out = [...primary];
+  for (const s of secondary) {
+    const duplicate = primary.some(p => {
+      const d = haversineDistance(p.lat, p.lon, s.lat, s.lon);
+      if (d <= 40) return true;
+      if (d <= 150) {
+        const a = normalizeName(p.name);
+        const b = normalizeName(s.name);
+        return !!a && !!b && (a === b || a.includes(b) || b.includes(a));
+      }
+      return false;
+    });
+    if (!duplicate) out.push(s);
+  }
+  return out;
+}
+
+/**
+ * Public entry point. Only ONE search runs at a time: GPS ticks used to start
+ * overlapping searches (each up to 4 Overpass calls + Google).
  */
 async function findNearestLiquorStore(lat, lon, force = false) {
+  if (state.isSearching) return;
+  state.isSearching = true;
+  try {
+    await runStoreSearch(lat, lon, force);
+  } finally {
+    state.isSearching = false;
+    state.lastSearchAt = Date.now();
+    // Hide refresh spinner (only if not on a strict cooldown)
+    if (elements.btnRefreshTheka && !state.isRefreshCooldown) {
+      elements.btnRefreshTheka.classList.remove('spinning');
+    }
+  }
+}
+
+/**
+ * Queries Google Places (via our proxy, nearest first) and OSM Overpass, merges,
+ * de-duplicates and decides between: normal target, dry state with a border
+ * oasis, or "desert" (nothing within range).
+ */
+async function runStoreSearch(lat, lon, force) {
   // Distance-Based Caching Check
   if (!force && state.lastSearchCoords) {
     const distanceMoved = haversineDistance(lat, lon, state.lastSearchCoords.lat, state.lastSearchCoords.lon);
     if (distanceMoved < 500 && state.cachedStores.length > 0) {
       console.log(`Using cached stores. User moved ${Math.round(distanceMoved)}m (under 500m threshold).`);
       state.stores = JSON.parse(JSON.stringify(state.cachedStores));
-      
-      if (state.isDryZone) {
+
+      if (isSpinning()) {
         updateStatus('Dry Zone Detected 🌵');
         updateCompassDisplay();
         runDrySpinLoop();
@@ -1186,80 +1421,81 @@ async function findNearestLiquorStore(lat, lon, force = false) {
   }
 
   updateStatus('Locating nearby liquor stores...');
-  
-  // Show refresh spinner
-  if (elements.btnRefreshTheka) {
-    elements.btnRefreshTheka.classList.add('spinning');
-  }
-  
-  // 1. Fetch from Google Places API via our secure serverless proxy
+  if (elements.btnRefreshTheka) elements.btnRefreshTheka.classList.add('spinning');
+
+  // 1. Google Places via our secure serverless proxy (nearest first)
   let googleStores = [];
   try {
     updateStatus('Searching Google Places...');
-    googleStores = await fetchGooglePlacesStores(lat, lon, MAX_SEARCH_RADIUS);
+    googleStores = await fetchGooglePlacesStores(lat, lon);
   } catch (err) {
     console.warn('Google Places fetch failed, relying on local static stores:', err);
   }
 
-  // Calculate distances for the fetched Google Places stores
-  let googleStoresWithDistance = googleStores.map(store => {
-    const dist = haversineDistance(lat, lon, store.lat, store.lon);
-    return { ...store, distance: dist };
-  }).filter(store => store.distance <= MAX_SEARCH_RADIUS);
+  let googleStoresWithDistance = googleStores
+    .map(store => ({ ...store, distance: haversineDistance(lat, lon, store.lat, store.lon) }))
+    .filter(store => store.distance <= MAX_SEARCH_RADIUS);
 
-  // If Google Places returned nothing (e.g. key missing/failed/no results), fall back to local static stores
+  // If Google Places returned nothing (key missing / failed / no results), fall back to the static list
   if (googleStoresWithDistance.length === 0) {
     console.log('No Google Places API results. Using local static stores fallback.');
-    googleStoresWithDistance = GOOGLE_MAPS_STORES.map(store => {
-      const dist = haversineDistance(lat, lon, store.lat, store.lon);
-      return { ...store, distance: dist };
-    }).filter(store => store.distance <= MAX_SEARCH_RADIUS);
+    googleStoresWithDistance = GOOGLE_MAPS_STORES
+      .map(store => ({ ...store, distance: haversineDistance(lat, lon, store.lat, store.lon) }))
+      .filter(store => store.distance <= MAX_SEARCH_RADIUS);
   }
-  
+
+  // 2. OSM Overpass: shops in widening radii
   let osmStores = [];
-  
-  // 2. Query OSM Overpass API dynamically
-  const searchRadii = [DEFAULT_SEARCH_RADIUS, 5000, 10000, MAX_SEARCH_RADIUS];
-  for (const radius of searchRadii) {
+  let overpassFailures = 0; // stop hammering a server that is down or slow
+  for (const radius of [DEFAULT_SEARCH_RADIUS, 5000, 10000, MAX_SEARCH_RADIUS]) {
+    if (overpassFailures >= 2) break;
     try {
-      updateStatus(`Searching within ${radius/1000}km...`);
+      updateStatus(`Searching within ${radius / 1000}km...`);
       const results = await fetchOverpassStores(lat, lon, radius);
-      if (results && results.length > 0) {
-        osmStores = results;
-        break; // Found OSM results, don't query larger radius
-      }
+      if (results && results.length > 0) { osmStores = results; break; }
     } catch (error) {
+      overpassFailures++;
       console.warn(`Overpass search failed at ${radius}m:`, error);
     }
   }
-  
-  // Mark OpenStreetMap sources
-  osmStores.forEach(s => {
-    s.source = 'Apple / OSM';
-  });
-  
-  // 3. Merge both databases (Foursquare/OSM + Google Maps coordinates)
-  const mergedStores = [...googleStoresWithDistance, ...osmStores];
-  
-  // Check if they are in an Indian dry state bounding box
-  const dryState = getDryState(lat, lon);
-  
+
+  // Pubs are not takeaway thekas: only offer them when nothing else exists nearby.
+  if (osmStores.length === 0 && googleStoresWithDistance.length === 0) {
+    for (const radius of [DEFAULT_SEARCH_RADIUS, 5000]) {
+      if (overpassFailures >= 2) break;
+      try {
+        const results = await fetchOverpassStores(lat, lon, radius, true);
+        if (results && results.length > 0) { osmStores = results; break; }
+      } catch (error) {
+        overpassFailures++;
+        console.warn(`Overpass pub search failed at ${radius}m:`, error);
+      }
+    }
+  }
+
+  osmStores.forEach(s => { s.source = 'Apple / OSM'; });
+
+  // 3. Merge, dropping OSM records that are the same shop Google already knows
+  const mergedStores = dedupeStores(googleStoresWithDistance, osmStores);
+
+  // Which dry state (if any)? Uses the reverse-geocoded state, not rectangles.
+  const dryState = await getDryState(lat, lon);
+
   if (dryState) {
     state.isDryState = true;
     state.isDryZone = false;
-    
+    state.dryStateName = `Prohibition in ${dryState.name}`;
+    state.dryStateMessage = dryState.wittyMessage;
+
     // Find closest border oasis
     const oases = BORDER_OASES[dryState.name] || [];
     let closestOasis = null;
     let minDistance = Infinity;
     oases.forEach(oasis => {
       const dist = haversineDistance(lat, lon, oasis.lat, oasis.lon);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestOasis = oasis;
-      }
+      if (dist < minDistance) { minDistance = dist; closestOasis = oasis; }
     });
-    
+
     if (closestOasis) {
       state.nearestStore = {
         id: 'oasis',
@@ -1271,14 +1507,9 @@ async function findNearestLiquorStore(lat, lon, force = false) {
       };
       state.stores = [state.nearestStore];
       state.nearestStore.distance = minDistance;
-      
+
       updateStatus(`Prohibition in ${dryState.name} 🚨`);
-      updateCompassDisplay();
-      
-      if (drySpinRequest) {
-        cancelAnimationFrame(drySpinRequest);
-        drySpinRequest = null;
-      }
+      updateCompassDisplay(); // not spinning: the needle now points at the oasis
     } else {
       state.stores = [];
       state.nearestStore = null;
@@ -1293,14 +1524,14 @@ async function findNearestLiquorStore(lat, lon, force = false) {
     sortAndSetNearest();
     updateStatus('Theka locked on target', true);
   } else {
-    // If no stores were found anywhere:
+    // Nothing found anywhere
     if (state.isMockMode) {
       // In simulator test mode, generate mock shops around the user
       state.isDryState = false;
       state.isDryZone = false;
       loadFallbackMockStores(lat, lon);
     } else {
-      // In real GPS mode, treat as a dry zone / no stores found
+      // In real GPS mode, treat as a desert / no stores found
       state.isDryState = false;
       state.isDryZone = true;
       state.dryStateName = 'Dry Zone Detected';
@@ -1316,37 +1547,38 @@ async function findNearestLiquorStore(lat, lon, force = false) {
   // Cache results
   state.lastSearchCoords = { lat, lon };
   state.cachedStores = JSON.parse(JSON.stringify(state.stores));
-  
-  // Hide refresh spinner (only if not on a strict cooldown)
-  if (elements.btnRefreshTheka && !state.isRefreshCooldown) {
-    elements.btnRefreshTheka.classList.remove('spinning');
-  }
 }
 
 /**
  * Core HTTP Request to OSM Overpass interpreter.
  */
-async function fetchOverpassStores(lat, lon, radius) {
+async function fetchOverpassStores(lat, lon, radius, pubsOnly = false) {
   const endpoint = 'https://overpass-api.de/api/interpreter';
-  
-  // OSM tags: shop=alcohol (most common for thekas), shop=wine, shop=beverages (with alcohol=yes)
-  const query = `[out:json][timeout:15];
+
+  // OSM tags: shop=alcohol (most common for thekas), shop=wine, shop=beverages (with alcohol=yes).
+  // Pubs are only queried as a last resort (pubsOnly): they are not takeaway thekas.
+  const query = pubsOnly
+    ? `[out:json][timeout:15];
+    (
+      node["amenity"="pub"](around:${radius},${lat},${lon});
+    );
+    out body;`
+    : `[out:json][timeout:15];
     (
       node["shop"="alcohol"](around:${radius},${lat},${lon});
       node["shop"="wine"](around:${radius},${lat},${lon});
       node["shop"="liquor"](around:${radius},${lat},${lon});
       node["shop"="beverages"]["alcohol"="yes"](around:${radius},${lat},${lon});
-      node["amenity"="pub"](around:${radius},${lat},${lon});
     );
     out body;`;
     
-  const response = await fetch(endpoint, {
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     body: query,
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
     }
-  });
+  }, 12000);
   
   if (!response.ok) {
     throw new Error(`OSM HTTP Error: ${response.status}`);
@@ -1449,13 +1681,6 @@ function sortAndSetNearest() {
  */
 function updateStatus(message, isPulsing = false) {
   elements.thekaStatusText.textContent = message;
-  const dot = document.querySelector('.status-dot');
-  
-  if (isPulsing) {
-    dot.classList.add('pulsing');
-  } else {
-    dot.classList.remove('pulsing');
-  }
 }
 
 // --- HARDWARE SENSORS & PERMISSIONS ---
@@ -1518,24 +1743,10 @@ async function resolveCityAndCountry(lat, lon) {
     return { city: state.resolvedCity, country: state.resolvedCountry };
   }
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1500);
+  const region = await reverseGeocode(lat, lon);
+  state.resolvedCity = (region && region.city) || 'Unknown City';
+  state.resolvedCountry = (region && region.country) || 'Unknown Country';
 
-  try {
-    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=en`, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!res.ok) throw new Error('OSM error');
-    const data = await res.json();
-    const addr = data.address;
-    
-    state.resolvedCity = addr.city || addr.town || addr.village || addr.suburb || addr.city_district || addr.state || 'Unknown City';
-    state.resolvedCountry = addr.country || 'Unknown Country';
-  } catch (e) {
-    console.warn('Reverse geocode failed or timed out:', e);
-    state.resolvedCity = 'Unknown City';
-    state.resolvedCountry = 'Unknown Country';
-  }
-  
   return { city: state.resolvedCity, country: state.resolvedCountry };
 }
 
@@ -1791,12 +2002,26 @@ function startLocationWatching() {
       // Update coordinates
       state.userLocation.lat = newLat;
       state.userLocation.lon = newLon;
-      
-      // Perform lookup & UI updates
-      if (state.stores.length === 0) {
+
+      // Search when we have never searched, or after moving 500 m, or (when nothing was found)
+      // once a minute. Never while a search is already running, and never more than every 15 s:
+      // GPS ticks fire several times a second and used to hammer Google + Overpass in dry zones.
+      const sinceLast = Date.now() - state.lastSearchAt;
+      const moved = state.lastSearchCoords
+        ? haversineDistance(newLat, newLon, state.lastSearchCoords.lat, state.lastSearchCoords.lon)
+        : Infinity;
+      const nothingFound = state.stores.length === 0;
+      const shouldSearch = !state.isSearching && sinceLast > 15000 &&
+        (moved >= SEARCH_REFRESH_METERS || (nothingFound && sinceLast > 60000));
+
+      if (shouldSearch) {
         findNearestLiquorStore(newLat, newLon);
-      } else {
+      } else if (!nothingFound) {
         sortAndSetNearest();
+        updateCompassDisplay();
+      } else if (!state.isSearching && !state.lastSearchCoords) {
+        findNearestLiquorStore(newLat, newLon); // very first fix
+      } else {
         updateCompassDisplay();
       }
     },
@@ -2003,7 +2228,150 @@ function triggerCalibrationOverlay() {
 
 // --- INITIALIZATION & REGISTER EVENT LISTENERS ---
 
+// --- SUPPORT: beer sheet, UPI QR, Ko-fi ---
+
+const SUPPORT_QUIET_DAYS = 30; // after someone supports, stop asking for a month
+
+function loadSupportState() {
+  try {
+    const at = Number(localStorage.getItem('theka_supported_at'));
+    state.supportSuppressed = !!at && Date.now() - at < SUPPORT_QUIET_DAYS * 86400000;
+  } catch (e) {
+    state.supportSuppressed = false;
+  }
+  if (elements.btnArrivedLater) elements.btnArrivedLater.textContent = state.supportSuppressed ? 'Done' : 'Maybe later';
+}
+
+function markSupported() {
+  try { localStorage.setItem('theka_supported_at', String(Date.now())); } catch (e) { /* private mode */ }
+  loadSupportState();
+}
+
+let qrFactory = null;
+let upiRenderId = 0;
+
+/** Rebuilds the UPI link, its caption and a real, scannable QR for the chosen amount. */
+async function renderUpi() {
+  const renderId = ++upiRenderId;
+  const vpa = elements.upiAddress.textContent.trim();
+  const link = buildUpiLink({ vpa, name: 'Soubhagya', amount: state.upiAmount, note: 'Theka Finder' });
+  elements.upiQrLink.href = link; // tapping the QR on a phone opens the UPI app chooser
+  elements.upiCaption.textContent = state.upiAmount
+    ? `Scan to pay ₹${state.upiAmount} with any UPI app`
+    : 'Scan to pay any amount with any UPI app';
+  try {
+    if (!qrFactory) qrFactory = (await import('qrcode-generator')).default;
+    if (renderId !== upiRenderId) return; // a newer amount was picked while the library loaded
+    const qr = qrFactory(0, 'M');
+    qr.addData(link);
+    qr.make();
+    const n = qr.getModuleCount();
+    let d = '';
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (qr.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
+      }
+    }
+    elements.upiQr.innerHTML = `<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges"><path d="${d}" fill="#000"/></svg>`;
+  } catch (err) {
+    console.warn('Could not draw the UPI QR:', err);
+    elements.upiQr.textContent = '';
+  }
+}
+
+function openBeerSheet() {
+  if (!elements.beerModal) return;
+  elements.beerModal.classList.remove('hidden');
+  unlockAudio(); // Unlock audio on click gesture
+  renderUpi();
+}
+
+function closeBeerSheet() {
+  if (elements.beerModal) elements.beerModal.classList.add('hidden');
+}
+
+function initDonation() {
+  loadSupportState();
+
+  [elements.btnBuyBeer, elements.btnArrivedBeer].forEach(btn => {
+    if (btn) btn.addEventListener('click', openBeerSheet);
+  });
+  if (elements.btnArrivedLater) {
+    elements.btnArrivedLater.addEventListener('click', () => {
+      state.arrivedDismissed = true;
+      updateCompassDisplay();
+    });
+  }
+  if (!elements.beerModal) return;
+
+  elements.btnCloseBeerModal.addEventListener('click', closeBeerSheet);
+  elements.beerModal.addEventListener('click', (e) => {
+    if (e.target === elements.beerModal) closeBeerSheet();
+  });
+
+  // India / International tabs
+  const tabIndia = document.getElementById('tab-india');
+  const tabIntl = document.getElementById('tab-intl');
+  const panelIndia = document.getElementById('panel-india');
+  const panelIntl = document.getElementById('panel-intl');
+  const showTab = (india) => {
+    tabIndia.classList.toggle('active', india);
+    tabIntl.classList.toggle('active', !india);
+    tabIndia.setAttribute('aria-selected', String(india));
+    tabIntl.setAttribute('aria-selected', String(!india));
+    panelIndia.classList.toggle('active', india);
+    panelIntl.classList.toggle('active', !india);
+  };
+  tabIndia.addEventListener('click', () => showTab(true));
+  tabIntl.addEventListener('click', () => showTab(false));
+
+  // Amount presets (UPI can carry an amount; Ko-fi cannot)
+  elements.upiAmounts.addEventListener('click', (e) => {
+    const btn = e.target.closest('.amount-btn');
+    if (!btn) return;
+    elements.upiAmounts.querySelectorAll('.amount-btn').forEach(b => b.classList.toggle('active', b === btn));
+    state.upiAmount = normalizeAmount(btn.dataset.amount); // "Other" -> null: the payer types it in their app
+    renderUpi();
+  });
+
+  // Copy UPI ID
+  elements.btnCopyUpi.addEventListener('click', () => {
+    const text = elements.upiAddress.textContent.trim();
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        elements.copyLabel.textContent = 'Copied';
+        elements.btnCopyUpi.classList.add('copied');
+        setTimeout(() => {
+          elements.copyLabel.textContent = 'Copy';
+          elements.btnCopyUpi.classList.remove('copied');
+        }, 2000);
+      })
+      .catch(() => showToast(`UPI ID: ${text}`));
+  });
+
+  // "I've donated" (UPI): thank them, then stop asking for a while
+  elements.btnBeerSuccess.addEventListener('click', () => {
+    closeBeerSheet();
+    markSupported();
+    setTimeout(triggerDonationCelebration, 300);
+  });
+
+  // Ko-fi opens in a new tab; celebrate once they are back
+  elements.btnOpenKofi.addEventListener('click', () => {
+    markSupported();
+    closeBeerSheet();
+    setTimeout(triggerDonationCelebration, 1000);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !elements.beerModal.classList.contains('hidden')) closeBeerSheet();
+  });
+}
+
 function init() {
+  initSheet();
+  initDonation();
+
   // 1. Request Buttons
   elements.btnRequestAccess.addEventListener('click', requestDeviceAccess);
   elements.btnMockMode.addEventListener('click', triggerMockModeFallback);
@@ -2129,22 +2497,6 @@ function init() {
 
   // 6. Buy Me a Beer Modal Handlers
   if (elements.btnBuyBeer && elements.beerModal) {
-    elements.btnBuyBeer.addEventListener('click', () => {
-      elements.beerModal.classList.remove('hidden');
-      unlockAudio(); // Unlock audio on click gesture
-    });
-    
-    elements.btnCloseBeerModal.addEventListener('click', () => {
-      elements.beerModal.classList.add('hidden');
-    });
-    
-    // Close modal when clicking outside content area
-    elements.beerModal.addEventListener('click', (e) => {
-      if (e.target === elements.beerModal) {
-        elements.beerModal.classList.add('hidden');
-      }
-    });
-    
     // FAQ Modal handlers
     if (elements.btnInfoFaq && elements.faqModal) {
       elements.btnInfoFaq.addEventListener('click', () => {
@@ -2189,6 +2541,20 @@ function init() {
         }
       }
     };
+
+    // Guide footer: jump to report / donate
+    if (elements.btnGuideReport) {
+      elements.btnGuideReport.addEventListener('click', () => {
+        elements.faqModal.classList.add('hidden');
+        openIssueModal();
+      });
+    }
+    if (elements.btnGuideBeer) {
+      elements.btnGuideBeer.addEventListener('click', () => {
+        elements.faqModal.classList.add('hidden');
+        openBeerSheet();
+      });
+    }
 
     if (elements.btnReportIssueWelcome) {
       elements.btnReportIssueWelcome.addEventListener('click', openIssueModal);
@@ -2258,78 +2624,11 @@ function init() {
       });
     }
     
-    // Copy UPI ID functionality
-    if (elements.btnCopyUpi && elements.upiAddress) {
-      elements.btnCopyUpi.addEventListener('click', () => {
-        const textToCopy = elements.upiAddress.textContent;
-        navigator.clipboard.writeText(textToCopy)
-          .then(() => {
-            const originalText = elements.btnCopyUpi.textContent;
-            elements.btnCopyUpi.textContent = 'Copied!';
-            elements.btnCopyUpi.style.background = 'rgba(40, 167, 69, 0.2)';
-            elements.btnCopyUpi.style.color = '#28a745';
-            
-            setTimeout(() => {
-              elements.btnCopyUpi.textContent = originalText;
-              elements.btnCopyUpi.style.background = '';
-              elements.btnCopyUpi.style.color = '';
-            }, 2000);
-          })
-          .catch(err => {
-            console.error('Failed to copy UPI address:', err);
-            alert(`UPI Address: ${textToCopy}`);
-          });
-      });
-    }
-    
-    // "I've Donated" success button
-    if (elements.btnBeerSuccess) {
-      elements.btnBeerSuccess.addEventListener('click', () => {
-        elements.beerModal.classList.add('hidden');
-        
-        // Trigger donation celebration (hiss, pop sound, and confetti!)
-        setTimeout(() => {
-          triggerDonationCelebration();
-        }, 300);
-      });
-    }
-
-    // Tab switching inside payment modal
-    const tabIndia = document.getElementById('tab-india');
-    const tabIntl = document.getElementById('tab-intl');
-    const panelIndia = document.getElementById('panel-india');
-    const panelIntl = document.getElementById('panel-intl');
-    
-    if (tabIndia && tabIntl && panelIndia && panelIntl) {
-      tabIndia.addEventListener('click', () => {
-        tabIndia.classList.add('active');
-        tabIntl.classList.remove('active');
-        panelIndia.classList.add('active');
-        panelIntl.classList.remove('active');
-      });
-      
-      tabIntl.addEventListener('click', () => {
-        tabIntl.classList.add('active');
-        tabIndia.classList.remove('active');
-        panelIntl.classList.add('active');
-        panelIndia.classList.remove('active');
-      });
-    }
-    
-    // Confetti celebration when international cards are clicked
-    const intlCards = document.querySelectorAll('.intl-card');
-    intlCards.forEach(card => {
-      card.addEventListener('click', () => {
-        elements.beerModal.classList.add('hidden');
-        
-        // Wait for redirect to happen then trigger celebration
-        setTimeout(() => {
-          triggerDonationCelebration();
-        }, 1000);
-      });
-    });
   }
-  
+
+  // Keep the locked store's live hours fresh (cached 5 min per place, so this is cheap)
+  setInterval(() => loadStoreHours(state.nearestStore), 60 * 1000);
+
   // Initial dial generation on startup
   generateCompassDial();
   confetti.init();
