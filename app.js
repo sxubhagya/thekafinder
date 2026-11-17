@@ -231,7 +231,6 @@ const elements = {
   oasisName: document.getElementById('oasis-name'),
   oasisMeta: document.getElementById('oasis-meta'),
   detailHours: document.getElementById('detail-hours'),
-  detailAddress: document.getElementById('detail-address'),
   detailHoursSub: document.getElementById('detail-hours-sub'),
   arrivedSub: document.getElementById('arrived-sub'),
   btnArrivedBeer: document.getElementById('btn-arrived-beer'),
@@ -528,7 +527,7 @@ const geoMemo = new Map();
  * Reverse geocode with Nominatim. Cached by ~5 km cell (memory + localStorage), 3 s timeout.
  * Returns { city, state, iso, country } or null if unavailable.
  */
-async function reverseGeocode(lat, lon, timeoutMs = 3000) {
+async function reverseGeocode(lat, lon) {
   const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
   if (geoMemo.has(key)) return geoMemo.get(key);
   try {
@@ -537,7 +536,7 @@ async function reverseGeocode(lat, lon, timeoutMs = 3000) {
   } catch (e) { /* storage unavailable */ }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutId = setTimeout(() => controller.abort(), 3000);
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10&accept-language=en`, { signal: controller.signal });
     clearTimeout(timeoutId);
@@ -1144,7 +1143,6 @@ function updateCompassDisplay() {
     elements.metricSteps.textContent = steps.toLocaleString();
     elements.thekaName.textContent = store.name;
     elements.thekaAddress.textContent = store.address || 'Address unknown';
-    elements.detailAddress.textContent = store.address || 'Address unknown';
 
     // Mode, core text and haptics
     let directionText;
@@ -1745,8 +1743,7 @@ async function resolveCityAndCountry(lat, lon) {
     return { city: state.resolvedCity, country: state.resolvedCountry };
   }
 
-  // The greeting waits on this, so keep the original 1.5 s limit (the dry-state check can afford longer)
-  const region = await reverseGeocode(lat, lon, 1500);
+  const region = await reverseGeocode(lat, lon);
   state.resolvedCity = (region && region.city) || 'Unknown City';
   state.resolvedCountry = (region && region.country) || 'Unknown Country';
 
