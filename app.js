@@ -123,6 +123,7 @@ const state = {
   resolvedCountry: '',
   isSearching: false,
   lastSearchAt: 0,
+  sheetExpanded: false,
   feedbackStats: null // { openCount, closedCount, totalCount } for the locked store, last 12 h
 };
 
@@ -207,7 +208,26 @@ const elements = {
   issueForm: document.getElementById('issue-form'),
   issueDetectedLocation: document.getElementById('issue-detected-location'),
   issueType: document.getElementById('issue-type'),
-  issueDescription: document.getElementById('issue-description')
+  issueDescription: document.getElementById('issue-description'),
+
+  // Bottom sheet, picker and dial
+  bottomSheet: document.getElementById('bottom-sheet'),
+  sheetHandle: document.getElementById('sheet-handle'),
+  sheetScrim: document.getElementById('sheet-scrim'),
+  btnDirections: document.getElementById('btn-directions'),
+  directionsLabel: document.getElementById('directions-label'),
+  pickerModal: document.getElementById('picker-modal'),
+  pickerTitle: document.getElementById('picker-title'),
+  pickerSub: document.getElementById('picker-sub'),
+  btnPickerCancel: document.getElementById('btn-picker-cancel'),
+  btnBookCabPicker: document.getElementById('btn-book-cab-picker'),
+  dryChipText: document.getElementById('dry-chip-text'),
+  dryTitle: document.getElementById('dry-title'),
+  dryMessage: document.getElementById('dry-message'),
+  oasisName: document.getElementById('oasis-name'),
+  oasisMeta: document.getElementById('oasis-meta'),
+  detailHours: document.getElementById('detail-hours'),
+  detailHoursSub: document.getElementById('detail-hours-sub')
 };
 
 // --- CONFETTI & SOUND SYSTEMS ---
@@ -355,18 +375,9 @@ function triggerArrivalCelebration() {
   // Shoot confetti
   confetti.spawn();
   
-  // Update status indicators in UI
-  elements.directionInstructions.textContent = 'ARRIVED! GRAB A BEER! 🍻';
-  elements.arrowIndicator.style.color = '#28a745';
-  elements.thekaStatusText.textContent = '🍻 Arrived 🍻';
-  
-  // Pulse the bottom card
-  const bottomCard = document.querySelector('.bottom-card');
-  if (bottomCard) {
-    bottomCard.style.animation = 'none';
-    void bottomCard.offsetWidth; // Reflow
-    bottomCard.style.animation = 'pulse 0.5s ease 3';
-  }
+  // The dial core and sheet switch to the arrived look on the next render
+  elements.thekaStatusText.textContent = 'Arrived';
+  updateStatus('Arrived');
 }
 
 /**
@@ -396,7 +407,7 @@ async function loadStoreHours(store) {
   }
   hoursCache.set(store.id, { at: Date.now(), pending: true, hours: cached?.hours });
   try {
-    const res = await fetch(`/api/place-hours?place_id=${encodeURIComponent(store.id)}`);
+    const res = await fetchWithTimeout(`/api/place-hours?place_id=${encodeURIComponent(store.id)}`, {}, 8000);
     if (!res.ok) throw new Error(`place-hours ${res.status}`);
     const data = await res.json();
     const hours = data.hours || data.businessStatus
@@ -690,7 +701,7 @@ async function loadStoreFeedback(storeId) {
   }
   
   if (elements.feedbackMetricsText) {
-    elements.feedbackMetricsText.textContent = 'Loading user reports... ⏳';
+    elements.feedbackMetricsText.textContent = 'Loading reports...';
   }
 
   try {
@@ -714,11 +725,11 @@ async function loadStoreFeedback(storeId) {
       let text = '';
       if (stats && stats.totalCount > 0) {
         const timeAgoText = last ? getTimeAgo(new Date(last.createdAt)) : '';
-        const pctText = `👍 ${stats.openPercentage}% users reported open in last 12 hrs (${stats.openCount} of ${stats.totalCount} reports)`;
-        const lastReportText = last ? `\n(Last reported ${last.status} ${timeAgoText})` : '';
+        const pctText = `${stats.openPercentage}% say open · ${stats.openCount} of ${stats.totalCount} reports in the last 12 hrs.`;
+        const lastReportText = last ? `\nLast report: ${last.status}, ${timeAgoText}.` : '';
         text = `${pctText}${lastReportText}`;
       } else {
-        text = 'No user updates in last 12 hours. Be the first to report! 🍻';
+        text = 'No reports in the last 12 hours. Be the first.';
       }
       
       elements.feedbackMetricsText.textContent = text;
@@ -731,7 +742,7 @@ async function loadStoreFeedback(storeId) {
       if (localData) {
         elements.feedbackMetricsText.textContent = localData;
       } else {
-        elements.feedbackMetricsText.textContent = 'Be the first to report store status! 🍻';
+        elements.feedbackMetricsText.textContent = 'Be the first to report this shop.';
       }
     }
   }
@@ -759,7 +770,7 @@ function getLocalStoreFeedback(storeId) {
     if (local) {
       const { status, time } = JSON.parse(local);
       const timeAgoText = getTimeAgo(new Date(time));
-      return `Last reported ${status} ${timeAgoText} (locally saved) 📍`;
+      return `Last report: ${status}, ${timeAgoText} (saved on this device).`;
     }
   } catch (e) {
     console.error(e);
@@ -920,84 +931,52 @@ function getCardinalDirection(angle) {
  */
 function generateCompassDial() {
   const center = 250;
-  const outerRadius = 220;
+  const outerRadius = 240;
+  const cardinals = { 0: 'N', 90: 'E', 180: 'S', 270: 'W' };
   let svgContent = '';
-  
-  // Outer circle ring
-  svgContent += `<circle cx="${center}" cy="${center}" r="${outerRadius}" stroke="rgba(255,255,255,0.08)" stroke-width="1.5" fill="none" />`;
-  
-  // Generate 360 tick marks
-  // To avoid cluttered rendering, we draw ticks every 2 degrees
+
+  // Hairline ring
+  svgContent += `<circle cx="${center}" cy="${center}" r="${outerRadius}" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" fill="none" />`;
+
+  // Tick marks every 2 degrees, heavier at 5 / 10 / 30 / 90
   for (let angle = 0; angle < 360; angle += 2) {
     const rad = (angle - 90) * Math.PI / 180;
-    let height = 6;
-    let strokeWidth = 0.75;
+    let height = 5;
+    let strokeWidth = 0.9;
     let strokeColor = 'rgba(255, 255, 255, 0.3)';
-    
-    if (angle % 30 === 0) {
-      height = 18;
-      strokeWidth = 2.5;
-      strokeColor = '#ffffff';
+
+    if (angle % 90 === 0) {
+      height = 24; strokeWidth = 3.5; strokeColor = '#ffffff';
+    } else if (angle % 30 === 0) {
+      height = 17; strokeWidth = 2.75; strokeColor = 'rgba(255, 255, 255, 0.92)';
     } else if (angle % 10 === 0) {
-      height = 12;
-      strokeWidth = 1.75;
-      strokeColor = 'rgba(255, 255, 255, 0.8)';
+      height = 11; strokeWidth = 1.9; strokeColor = 'rgba(255, 255, 255, 0.72)';
     } else if (angle % 5 === 0) {
-      height = 9;
-      strokeWidth = 1.25;
-      strokeColor = 'rgba(255, 255, 255, 0.5)';
+      height = 8; strokeWidth = 1.4; strokeColor = 'rgba(255, 255, 255, 0.5)';
     }
-    
-    // Custom style for North marker
+
+    let cls = '';
     if (angle === 0) {
       strokeColor = varName('--accent-red', '#ff3b30');
+      cls = ' class="north"';
     }
-    
+
     const x1 = center + (outerRadius - height) * Math.cos(rad);
     const y1 = center + (outerRadius - height) * Math.sin(rad);
     const x2 = center + outerRadius * Math.cos(rad);
     const y2 = center + outerRadius * Math.sin(rad);
-    
-    svgContent += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
-    
-    // Add text labels for major angles
-    if (angle % 30 === 0) {
-      const textRadius = outerRadius - 38;
+    svgContent += `<line${cls} x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
+
+    // Cardinal letters only: degree numbers around the ring were noise.
+    if (cardinals[angle]) {
+      const textRadius = outerRadius - 50;
       const tx = center + textRadius * Math.cos(rad);
-      const ty = center + textRadius * Math.sin(rad) + 5; // Slight vertical offset to center align text
-      
-      let label = angle;
-      let labelColor = 'rgba(255,255,255,0.6)';
-      let labelWeight = '300';
-      let labelSize = '14px';
-      
-      // Cardinal directions override degrees
-      if (angle === 0) {
-        label = 'N';
-        labelColor = '#ff3b30';
-        labelWeight = '700';
-        labelSize = '18px';
-      } else if (angle === 90) {
-        label = 'E';
-        labelColor = '#ffffff';
-        labelWeight = '600';
-        labelSize = '16px';
-      } else if (angle === 180) {
-        label = 'S';
-        labelColor = '#ffffff';
-        labelWeight = '600';
-        labelSize = '16px';
-      } else if (angle === 270) {
-        label = 'W';
-        labelColor = '#ffffff';
-        labelWeight = '600';
-        labelSize = '16px';
-      }
-      
-      svgContent += `<text x="${tx}" y="${ty}" fill="${labelColor}" font-family="${varName('--font-family-main')}" font-size="${labelSize}" font-weight="${labelWeight}" text-anchor="middle">${label}</text>`;
+      const ty = center + textRadius * Math.sin(rad);
+      const isNorth = angle === 0;
+      svgContent += `<text x="${tx.toFixed(2)}" y="${ty.toFixed(2)}" fill="${isNorth ? '#ff3b30' : 'rgba(255,255,255,0.78)'}" font-family="${varName('--font-family-main')}" font-size="${isNorth ? 30 : 26}" font-weight="${isNorth ? 700 : 600}" text-anchor="middle" dominant-baseline="central">${cardinals[angle]}</text>`;
     }
   }
-  
+
   elements.dialSvg.innerHTML = svgContent;
 }
 
@@ -1007,85 +986,134 @@ function varName(cssVar, fallback) {
 }
 
 /**
+ * What the dial and sheet are showing:
+ *   view  target | arrived | dry   (which block of the sheet)
+ *   tone  amber | green | red      (accent colour for dial, bottle, core)
+ *   core  arrow | beer | drop      (icon in the middle of the dial)
+ */
+function setScreenMode({ view, tone, core, spin = false, oasis = false }) {
+  const d = elements.compassScreen.dataset;
+  d.view = view;
+  d.tone = tone;
+  d.core = core;
+  d.spin = spin ? '1' : '0';
+  d.oasis = oasis ? '1' : '0';
+}
+
+/** "Madhuloka Liquor Boutique" -> "Madhuloka". Keeps the full name when trimming would leave nothing useful. */
+function shortName(name) {
+  const full = (name || '').replace(/\s*\(.*?\)\s*$/, '').trim();
+  if (full.length <= 22) return full || 'the theka';
+  const cleaned = full.replace(/\b(liquor|wines?|beer|shop|store|stores|boutique|bar|theka|and|&)\b.*$/i, '').trim();
+  const vague = /^(government|govt\.?|state|new|the|old|city|royal|super|national|punjab|delhi)$/i;
+  return cleaned.length >= 3 && !vague.test(cleaned) ? cleaned : full;
+}
+
+/** "Border Oasis: Daman (Union Territory)" -> "Daman" */
+function oasisShortName(name) {
+  return (name || '').replace(/^Border Oasis:\s*/i, '').replace(/\s*\(.*\)\s*$/, '').trim() || 'the border';
+}
+
+function formatDistance(meters) {
+  return meters >= 1000 ? `${(meters / 1000).toFixed(meters >= 10000 ? 0 : 1)} km` : `${Math.round(meters)} m`;
+}
+
+/** "about 9 minutes on foot" up to an hour, otherwise a plain distance. */
+function walkingLabel(meters) {
+  const minutes = Math.max(1, Math.round(meters / 80)); // ~4.8 km/h
+  if (minutes < 60) return `${formatDistance(meters)} · about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'} on foot`;
+  return `${formatDistance(meters)} away`;
+}
+
+/** Live / crowd / unknown sub-line under the hours row. */
+function hoursSubline(store, status) {
+  if (status.source === 'google') {
+    const cached = hoursCache.get(store.id);
+    if (cached && cached.hours && cached.at) {
+      const mins = Math.floor((Date.now() - cached.at) / 60000);
+      return { text: `Live · Google · ${mins < 1 ? 'just now' : `${mins} min ago`}`, live: true };
+    }
+    return { text: 'From the Google search', live: false };
+  }
+  if (status.source === 'crowd') return { text: 'Based on crowd reports', live: false };
+  return { text: 'No live hours for this shop', live: false };
+}
+
+function setLinkEnabled(el, enabled) {
+  if (el) el.classList.toggle('disabled', !enabled);
+}
+
+/**
  * Refreshes UI based on the current heading and geolocation.
  */
 function updateCompassDisplay() {
   // 1. Rotate the compass dial (North points up, so dial rotates counter to heading)
   elements.compassDial.style.transform = `rotate(${-state.heading}deg)`;
-  
-  // 2. Update heading text row
-  const currentHeadingInt = Math.round(state.heading);
+
+  // 2. Heading readout
+  const currentHeadingInt = Math.round(state.heading) % 360;
   elements.headingVal.textContent = currentHeadingInt;
   elements.headingDir.textContent = getCardinalDirection(currentHeadingInt);
-  
-  // 3. Update location coordinates
+
+  // 3. Coordinates (live in the expanded sheet)
   elements.locationText.textContent = formatCoordinates(state.userLocation.lat, state.userLocation.lon);
-  
+
   if (elements.btnEmergencySos && state.userLocation.lat && state.userLocation.lon) {
     elements.btnEmergencySos.classList.remove('disabled');
   }
-  
-  // 4. Update the liquor needle and target metrics
-  // Spin only when there is nothing to point at. In a dry STATE the needle points at the
-  // nearest border oasis (a real target), so it falls through to the normal branch below.
-  const isOasis = !!state.nearestStore && state.nearestStore.id === 'oasis';
+
+  // 4. Needle + sheet. Spin only when there is nothing to point at. In a dry STATE the bottle points
+  //    at the nearest border oasis (a real target), so it falls through to the normal branch below.
+  const store = state.nearestStore;
+  const isOasis = !!store && store.id === 'oasis';
+
   if (isSpinning()) {
-    elements.needleDistanceLabel.textContent = '❌';
-    elements.arrowIndicator.style.color = 'var(--accent-red)';
-    
-    // Update bottom card panel
-    elements.thekaName.textContent = state.dryStateName || 'Dry Zone Detected';
-    elements.thekaAddress.textContent = state.dryStateMessage || 'Prohibition is active here.';
-    
-    // Reset standard metrics
-    elements.metricDistance.textContent = '--';
-    elements.metricDistanceUnit.textContent = '';
-    elements.metricSteps.textContent = '--';
-    elements.directionInstructions.textContent = '🚫 Dry Zone! Compass is spinning in grief.';
-    
-    if (elements.btnAppleMaps) elements.btnAppleMaps.classList.add('disabled');
-    if (elements.btnGoogleMaps) elements.btnGoogleMaps.classList.add('disabled');
-    if (elements.btnBookCab) elements.btnBookCab.classList.add('disabled');
-    if (elements.thekaSourceBadge) elements.thekaSourceBadge.style.display = 'none';
+    const region = (state.dryStateName || '').replace(/^Prohibition in /, '');
+    setScreenMode({ view: 'dry', tone: 'red', core: 'drop', spin: true });
+    elements.dryChipText.textContent = state.isDryState && region ? `Prohibition · ${region}` : 'Dry zone';
+    elements.dryTitle.textContent = state.isDryState ? 'Compass is spinning in grief' : 'Nothing within 15 km';
+    elements.dryMessage.textContent = state.dryStateMessage || 'Prohibition is active here.';
+    elements.directionInstructions.textContent = 'Dry zone';
+
+    setLinkEnabled(elements.btnDirections, false);
+    setLinkEnabled(elements.btnAppleMaps, false);
+    setLinkEnabled(elements.btnGoogleMaps, false);
+    setLinkEnabled(elements.btnBookCab, false);
+    setLinkEnabled(elements.btnBookCabPicker, false);
     if (elements.thekaOpenStatus) elements.thekaOpenStatus.style.display = 'none';
     if (elements.feedbackSection) elements.feedbackSection.style.display = 'none';
+    if (elements.thekaSourceBadge) elements.thekaSourceBadge.textContent = '--';
     state.loadedFeedbackStoreId = null;
-    
-    // Telemetry
+
     elements.telemetryThekaPos.textContent = 'PROHIBITED';
     elements.telemetryBearing.textContent = 'SPIN';
     elements.telemetryRelBearing.textContent = 'SPIN';
-  } else if (state.nearestStore) {
-    const bearing = calculateBearing(
-      state.userLocation.lat, state.userLocation.lon,
-      state.nearestStore.lat, state.nearestStore.lon
-    );
-    
-    const distance = haversineDistance(
-      state.userLocation.lat, state.userLocation.lon,
-      state.nearestStore.lat, state.nearestStore.lon
-    );
-    
+  } else if (store) {
+    const bearing = calculateBearing(state.userLocation.lat, state.userLocation.lon, store.lat, store.lon);
+    const distance = haversineDistance(state.userLocation.lat, state.userLocation.lon, store.lat, store.lon);
     const steps = Math.round(distance / AVERAGE_STEP_LENGTH);
-    
+
     // Absolute angle in viewport is (bearing - heading)
     const relativeAngle = (bearing - state.heading + 360) % 360;
     elements.liquorNeedle.style.transform = `rotate(${relativeAngle}deg)`;
-    
-    // Rotate the inner label back so it stays upright/legible
-    elements.needleDistanceLabel.style.transform = `translateX(-50%) rotate(${-relativeAngle}deg)`;
-    
-    // Set distance label text on the needle
-    if (distance >= 1000) {
-      elements.needleDistanceLabel.textContent = `${(distance / 1000).toFixed(1)} km`;
-    } else {
-      elements.needleDistanceLabel.textContent = `${Math.round(distance)} m`;
+    elements.arrowIndicator.style.transform = `rotate(${relativeAngle}deg)`;
+
+    // Aligned at < 5 deg, released at >= 8 deg so the state does not chatter
+    let aligned = state.isAligned || false;
+    if (relativeAngle < 5 || relativeAngle > 355) aligned = true;
+    else if (relativeAngle >= 8 && relativeAngle <= 352) aligned = false;
+    state.isAligned = aligned;
+
+    // Arrival: inside 5 m. Stays arrived until the user is clearly walking away (> 15 m).
+    if (distance <= 5 && !state.hasArrivedAtCurrentStore) {
+      state.hasArrivedAtCurrentStore = true;
+      triggerArrivalCelebration();
+    } else if (distance > 15) {
+      state.hasArrivedAtCurrentStore = false;
     }
-    
-    // Update bottom card panel
-    elements.thekaName.textContent = state.nearestStore.name;
-    elements.thekaAddress.textContent = state.nearestStore.address || 'Address unknown';
-    
+    const arrived = state.hasArrivedAtCurrentStore;
+
+    // Distance and steps
     if (distance >= 1000) {
       elements.metricDistance.textContent = (distance / 1000).toFixed(2);
       elements.metricDistanceUnit.textContent = 'km';
@@ -1094,106 +1122,81 @@ function updateCompassDisplay() {
       elements.metricDistanceUnit.textContent = 'm';
     }
     elements.metricSteps.textContent = steps.toLocaleString();
-    
-    // Update Direction helper arrow and text instructions
-    // Center arrow alignment: points relative to phone orientation
-    elements.arrowIndicator.style.transform = `rotate(${relativeAngle}deg)`;
-    
-    let directionText = '';
-    const needlePointer = document.querySelector('.liquor-pointer');
-    
-    // We enter aligned state at < 5 deg, and leave at >= 8 deg to prevent chattering/glitching
-    let isCurrentlyAligned = state.isAligned || false;
-    if (relativeAngle < 5 || relativeAngle > 355) {
-      isCurrentlyAligned = true;
-    } else if (relativeAngle >= 8 && relativeAngle <= 352) {
-      isCurrentlyAligned = false;
-    }
-    state.isAligned = isCurrentlyAligned;
+    elements.thekaName.textContent = store.name;
+    elements.thekaAddress.textContent = store.address || 'Address unknown';
 
-    if (isCurrentlyAligned || distance <= 5) {
-      directionText = 'Straight ahead! Go get it! 🍻';
-      elements.arrowIndicator.style.color = '#28a745'; // Green
-      triggerVibrationPulse(150); // Light haptic tick
-      if (needlePointer) needlePointer.classList.add('aligned');
+    // Mode, core text and haptics
+    let directionText;
+    if (arrived) {
+      directionText = "You're here";
+    } else if (aligned) {
+      directionText = 'Straight ahead';
+      triggerVibrationPulse(150); // light haptic tick
+    } else if (relativeAngle <= 180) {
+      directionText = `Turn ${Math.round(relativeAngle)}° right`;
     } else {
-      if (needlePointer) needlePointer.classList.remove('aligned');
-      if (relativeAngle <= 180) {
-        directionText = `Turn ${Math.round(relativeAngle)}° to your right`;
-        elements.arrowIndicator.style.color = 'var(--accent-amber)';
-      } else {
-        directionText = `Turn ${Math.round(360 - relativeAngle)}° to your left`;
-        elements.arrowIndicator.style.color = 'var(--accent-amber)';
-      }
+      directionText = `Turn ${Math.round(360 - relativeAngle)}° left`;
     }
-    
-    // Check if user has arrived at the store (within 5 meters)
-    if (distance <= 5) {
-      if (needlePointer) needlePointer.classList.add('aligned');
-      if (!state.hasArrivedAtCurrentStore) {
-        state.hasArrivedAtCurrentStore = true;
-        triggerArrivalCelebration();
-      }
-    } else {
-      elements.directionInstructions.textContent = directionText;
-      // Reset arrival flag if they walk away
-      if (distance > 15) {
-        state.hasArrivedAtCurrentStore = false;
-      }
-    }
-    
-    // Update Maps Action Redirect Links
-    if (elements.btnAppleMaps) {
-      elements.btnAppleMaps.href = `https://maps.apple.com/?daddr=${state.nearestStore.lat},${state.nearestStore.lon}&dirflg=w`;
-      elements.btnAppleMaps.classList.remove('disabled');
-    }
-    if (elements.btnGoogleMaps) {
-      elements.btnGoogleMaps.href = `https://www.google.com/maps/search/?api=1&query=${state.nearestStore.lat},${state.nearestStore.lon}`;
-      elements.btnGoogleMaps.classList.remove('disabled');
-    }
-    if (elements.btnBookCab) {
-      const storeName = state.nearestStore.name || 'Theka';
-      const address = state.nearestStore.address || '';
-      elements.btnBookCab.href = `https://m.uber.com/ul/?client_id=CschlSNhiPzFV_VMeToCbrthhALuYkjyD_Ew0GCT&action=setPickup&pickup=my_location&dropoff[latitude]=${state.nearestStore.lat}&dropoff[longitude]=${state.nearestStore.lon}&dropoff[nickname]=${encodeURIComponent(storeName)}&dropoff[formatted_address]=${encodeURIComponent(address)}`;
-      // A border oasis can be hundreds of km away: a cab is not the right tool.
-      elements.btnBookCab.classList.toggle('disabled', isOasis);
-    }
-    
-    // Update Source Badge
-    if (elements.thekaSourceBadge) {
-      elements.thekaSourceBadge.textContent = state.nearestStore.source || 'OSM';
-      elements.thekaSourceBadge.style.display = 'inline-block';
-      if (state.nearestStore.source === 'Google Maps') {
-        elements.thekaSourceBadge.style.background = 'rgba(66, 133, 244, 0.15)';
-        elements.thekaSourceBadge.style.color = '#4285F4';
-      } else {
-        elements.thekaSourceBadge.style.background = 'rgba(255, 183, 3, 0.15)';
-        elements.thekaSourceBadge.style.color = 'var(--accent-amber)';
-      }
-    }
-    
-    // Update Open Status Badge (live hours, crowd override only on clear disagreement; hidden for oases)
-    if (elements.thekaOpenStatus && elements.thekaOpenText) {
-      if (isOasis) {
-        elements.thekaOpenStatus.style.display = 'none';
-      } else {
-        const status = getStoreOpeningStatus(state.nearestStore);
-        elements.thekaOpenText.textContent = status.text;
+    elements.directionInstructions.textContent = directionText;
 
-        // Reset classes and set status class
-        elements.thekaOpenStatus.className = 'theka-status-badge open-status-badge';
-        elements.thekaOpenStatus.classList.add(status.class);
-        elements.thekaOpenStatus.style.display = 'inline-flex';
-      }
+    if (isOasis) {
+      const region = (state.dryStateName || '').replace(/^Prohibition in /, '') || 'this state';
+      const town = oasisShortName(store.name);
+      setScreenMode({ view: 'dry', tone: aligned ? 'green' : 'red', core: 'arrow', oasis: true });
+      elements.dryChipText.textContent = `Prohibition · ${region}`;
+      elements.dryTitle.textContent = `No thekas in ${region}`;
+      elements.dryMessage.textContent = 'Follow the bottle. The nearest wet town is a road trip away.';
+      elements.oasisName.textContent = `Border oasis · ${town}`;
+      elements.oasisMeta.textContent = `Nearest wet town · ${formatDistance(distance)}`;
+      elements.directionsLabel.textContent = `Directions to ${town}`;
+    } else {
+      setScreenMode({
+        view: 'target',
+        tone: arrived || aligned ? 'green' : 'amber',
+        core: arrived ? 'beer' : 'arrow'
+      });
+      elements.directionsLabel.textContent = 'Directions';
     }
-    
-    // Update Telemetry panel
-    elements.telemetryThekaPos.textContent = `${state.nearestStore.lat.toFixed(5)}, ${state.nearestStore.lon.toFixed(5)}`;
+
+    // Directions picker: title, sub-line and links
+    elements.pickerTitle.textContent = `Get to ${isOasis ? oasisShortName(store.name) : shortName(store.name)}`;
+    elements.pickerSub.textContent = isOasis ? `${formatDistance(distance)} · a road trip` : walkingLabel(distance);
+    elements.btnAppleMaps.href = `https://maps.apple.com/?daddr=${store.lat},${store.lon}&dirflg=${isOasis ? 'd' : 'w'}`;
+    elements.btnGoogleMaps.href = `https://www.google.com/maps/search/?api=1&query=${store.lat},${store.lon}`;
+    const cabHref = `https://m.uber.com/ul/?client_id=CschlSNhiPzFV_VMeToCbrthhALuYkjyD_Ew0GCT&action=setPickup&pickup=my_location&dropoff[latitude]=${store.lat}&dropoff[longitude]=${store.lon}&dropoff[nickname]=${encodeURIComponent(store.name || 'Theka')}&dropoff[formatted_address]=${encodeURIComponent(store.address || '')}`;
+    [elements.btnBookCab, elements.btnBookCabPicker].forEach(a => { if (a) a.href = cabHref; });
+    setLinkEnabled(elements.btnDirections, true);
+    setLinkEnabled(elements.btnAppleMaps, true);
+    setLinkEnabled(elements.btnGoogleMaps, true);
+    // A border oasis can be hundreds of km away: a cab is not the right tool.
+    setLinkEnabled(elements.btnBookCab, !isOasis);
+    setLinkEnabled(elements.btnBookCabPicker, !isOasis);
+
+    // Source row
+    if (elements.thekaSourceBadge) elements.thekaSourceBadge.textContent = store.source || 'OSM';
+
+    // Open / closed chip and the Hours row (live hours, crowd override only on clear disagreement)
+    if (isOasis) {
+      if (elements.thekaOpenStatus) elements.thekaOpenStatus.style.display = 'none';
+    } else {
+      const status = getStoreOpeningStatus(store);
+      elements.thekaOpenText.textContent = status.text;
+      elements.thekaOpenStatus.className = `status-chip open-status-badge ${status.class}`;
+      elements.thekaOpenStatus.style.display = 'inline-flex';
+
+      elements.detailHours.textContent = status.text;
+      const sub = hoursSubline(store, status);
+      elements.detailHoursSub.textContent = sub.text;
+      elements.detailHoursSub.classList.toggle('live', sub.live);
+    }
+
+    // Telemetry
+    elements.telemetryThekaPos.textContent = `${store.lat.toFixed(5)}, ${store.lon.toFixed(5)}`;
     elements.telemetryBearing.textContent = `${Math.round(bearing)}°`;
     elements.telemetryRelBearing.textContent = `${Math.round(relativeAngle)}°`;
 
-    // Only load feedback once per store to prevent network request spamming
-    const currentStoreId = state.nearestStore.id || `${state.nearestStore.lat.toFixed(5)}_${state.nearestStore.lon.toFixed(5)}`;
+    // Load votes and live hours once per store (no request spamming)
+    const currentStoreId = store.id || `${store.lat.toFixed(5)}_${store.lon.toFixed(5)}`;
     if (state.loadedFeedbackStoreId !== currentStoreId) {
       state.loadedFeedbackStoreId = currentStoreId;
       state.feedbackStats = null;
@@ -1202,27 +1205,80 @@ function updateCompassDisplay() {
         if (elements.feedbackSection) elements.feedbackSection.style.display = 'none';
       } else {
         loadStoreFeedback(currentStoreId);
-        loadStoreHours(state.nearestStore);
+        loadStoreHours(store);
       }
     }
   } else {
-    // Reset/loading state
+    // Searching / nothing yet
+    setScreenMode({ view: 'target', tone: 'amber', core: 'arrow' });
     elements.liquorNeedle.style.transform = 'rotate(0deg)';
-    elements.needleDistanceLabel.textContent = '-- m';
     elements.thekaName.textContent = 'Searching...';
+    elements.thekaAddress.textContent = 'Looking for the nearest theka';
     elements.metricDistance.textContent = '--';
+    elements.metricDistanceUnit.textContent = '';
     elements.metricSteps.textContent = '--';
-    if (elements.btnAppleMaps) elements.btnAppleMaps.classList.add('disabled');
-    if (elements.btnGoogleMaps) elements.btnGoogleMaps.classList.add('disabled');
-    if (elements.btnBookCab) elements.btnBookCab.classList.add('disabled');
-    if (elements.thekaSourceBadge) elements.thekaSourceBadge.style.display = 'none';
+    elements.directionInstructions.textContent = 'Stand still to calibrate';
+    [elements.btnDirections, elements.btnAppleMaps, elements.btnGoogleMaps, elements.btnBookCab, elements.btnBookCabPicker]
+      .forEach(el => setLinkEnabled(el, false));
+    if (elements.thekaSourceBadge) elements.thekaSourceBadge.textContent = '--';
     if (elements.thekaOpenStatus) elements.thekaOpenStatus.style.display = 'none';
     if (elements.feedbackSection) elements.feedbackSection.style.display = 'none';
     state.loadedFeedbackStoreId = null;
   }
-  
-  // Update Simulator telemetry
+
+  // Simulator telemetry
   elements.telemetryUserPos.textContent = `${state.userLocation.lat.toFixed(5)}, ${state.userLocation.lon.toFixed(5)}`;
+}
+
+// --- BOTTOM SHEET & DIRECTIONS PICKER ---
+
+function setSheetExpanded(expanded) {
+  state.sheetExpanded = expanded;
+  elements.bottomSheet.classList.toggle('expanded', expanded);
+  elements.sheetScrim.classList.toggle('visible', expanded);
+  elements.sheetHandle.setAttribute('aria-expanded', String(expanded));
+  elements.sheetHandle.setAttribute('aria-label', expanded ? 'Hide details' : 'Show more details');
+  if (!expanded) elements.bottomSheet.scrollTop = 0;
+}
+
+function setPickerOpen(open) {
+  if (!elements.pickerModal) return;
+  elements.pickerModal.classList.toggle('hidden', !open);
+}
+
+function initSheet() {
+  elements.sheetHandle.addEventListener('click', () => setSheetExpanded(!state.sheetExpanded));
+  elements.sheetScrim.addEventListener('click', () => setSheetExpanded(false));
+
+  // Swipe up to open, swipe down (from the top of the sheet) to close
+  let startY = null;
+  elements.bottomSheet.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+  elements.bottomSheet.addEventListener('touchend', (e) => {
+    if (startY === null) return;
+    const dy = e.changedTouches[0].clientY - startY;
+    startY = null;
+    if (!state.sheetExpanded && dy < -40) setSheetExpanded(true);
+    else if (state.sheetExpanded && dy > 60 && elements.bottomSheet.scrollTop <= 0) setSheetExpanded(false);
+  }, { passive: true });
+
+  // Directions picker
+  elements.btnDirections.addEventListener('click', () => {
+    if (elements.btnDirections.classList.contains('disabled')) return;
+    setPickerOpen(true);
+  });
+  elements.btnPickerCancel.addEventListener('click', () => setPickerOpen(false));
+  elements.pickerModal.addEventListener('click', (e) => {
+    if (e.target === elements.pickerModal) setPickerOpen(false);
+  });
+  [elements.btnAppleMaps, elements.btnGoogleMaps, elements.btnBookCabPicker].forEach(a => {
+    if (a) a.addEventListener('click', () => setTimeout(() => setPickerOpen(false), 150));
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (!elements.pickerModal.classList.contains('hidden')) setPickerOpen(false);
+    else if (state.sheetExpanded) setSheetExpanded(false);
+  });
 }
 
 /**
@@ -1242,11 +1298,21 @@ function triggerVibrationPulse(duration) {
 /**
  * Dynamic fetch from our secure serverless backend proxy for Google Places.
  */
+/**
+ * fetch() that gives up after `ms` instead of hanging. A stalled request must never wedge the
+ * single-flight store search, which would leave the compass on "Searching..." forever.
+ */
+function fetchWithTimeout(url, options = {}, ms = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 async function fetchGooglePlacesStores(lat, lon) {
   try {
     // The server ranks by distance (nearest first); we filter to MAX_SEARCH_RADIUS ourselves.
     const url = `/api/places?lat=${lat}&lon=${lon}`;
-    const response = await fetch(url);
+    const response = await fetchWithTimeout(url, {}, 10000);
     if (response.status === 429) {
       showToast('Whoa there! Too many location updates. Please wait a moment. ⏳');
       throw new Error('Rate limited');
@@ -1359,12 +1425,15 @@ async function runStoreSearch(lat, lon, force) {
 
   // 2. OSM Overpass: shops in widening radii
   let osmStores = [];
+  let overpassFailures = 0; // stop hammering a server that is down or slow
   for (const radius of [DEFAULT_SEARCH_RADIUS, 5000, 10000, MAX_SEARCH_RADIUS]) {
+    if (overpassFailures >= 2) break;
     try {
       updateStatus(`Searching within ${radius / 1000}km...`);
       const results = await fetchOverpassStores(lat, lon, radius);
       if (results && results.length > 0) { osmStores = results; break; }
     } catch (error) {
+      overpassFailures++;
       console.warn(`Overpass search failed at ${radius}m:`, error);
     }
   }
@@ -1372,10 +1441,12 @@ async function runStoreSearch(lat, lon, force) {
   // Pubs are not takeaway thekas: only offer them when nothing else exists nearby.
   if (osmStores.length === 0 && googleStoresWithDistance.length === 0) {
     for (const radius of [DEFAULT_SEARCH_RADIUS, 5000]) {
+      if (overpassFailures >= 2) break;
       try {
         const results = await fetchOverpassStores(lat, lon, radius, true);
         if (results && results.length > 0) { osmStores = results; break; }
       } catch (error) {
+        overpassFailures++;
         console.warn(`Overpass pub search failed at ${radius}m:`, error);
       }
     }
@@ -1480,13 +1551,13 @@ async function fetchOverpassStores(lat, lon, radius, pubsOnly = false) {
     );
     out body;`;
     
-  const response = await fetch(endpoint, {
+  const response = await fetchWithTimeout(endpoint, {
     method: 'POST',
     body: query,
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
     }
-  });
+  }, 12000);
   
   if (!response.ok) {
     throw new Error(`OSM HTTP Error: ${response.status}`);
@@ -1589,13 +1660,6 @@ function sortAndSetNearest() {
  */
 function updateStatus(message, isPulsing = false) {
   elements.thekaStatusText.textContent = message;
-  const dot = document.querySelector('.status-dot');
-  
-  if (isPulsing) {
-    dot.classList.add('pulsing');
-  } else {
-    dot.classList.remove('pulsing');
-  }
 }
 
 // --- HARDWARE SENSORS & PERMISSIONS ---
@@ -2144,6 +2208,8 @@ function triggerCalibrationOverlay() {
 // --- INITIALIZATION & REGISTER EVENT LISTENERS ---
 
 function init() {
+  initSheet();
+
   // 1. Request Buttons
   elements.btnRequestAccess.addEventListener('click', requestDeviceAccess);
   elements.btnMockMode.addEventListener('click', triggerMockModeFallback);
