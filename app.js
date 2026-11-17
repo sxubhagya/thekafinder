@@ -528,7 +528,7 @@ const geoMemo = new Map();
  * Reverse geocode with Nominatim. Cached by ~5 km cell (memory + localStorage), 3 s timeout.
  * Returns { city, state, iso, country } or null if unavailable.
  */
-async function reverseGeocode(lat, lon) {
+async function reverseGeocode(lat, lon, timeoutMs = 3000) {
   const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
   if (geoMemo.has(key)) return geoMemo.get(key);
   try {
@@ -537,7 +537,7 @@ async function reverseGeocode(lat, lon) {
   } catch (e) { /* storage unavailable */ }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3000);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&zoom=10&accept-language=en`, { signal: controller.signal });
     clearTimeout(timeoutId);
@@ -1745,7 +1745,8 @@ async function resolveCityAndCountry(lat, lon) {
     return { city: state.resolvedCity, country: state.resolvedCountry };
   }
 
-  const region = await reverseGeocode(lat, lon);
+  // The greeting waits on this, so keep the original 1.5 s limit (the dry-state check can afford longer)
+  const region = await reverseGeocode(lat, lon, 1500);
   state.resolvedCity = (region && region.city) || 'Unknown City';
   state.resolvedCountry = (region && region.country) || 'Unknown Country';
 
