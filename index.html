@@ -84,15 +84,15 @@
             "name": "Why is the compass needle spinning?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "The compass spins continuously if you enter a geoprohibited Dry Zone (like Bihar, Gujarat, Nagaland, Mizoram, or Lakshadweep) or if it's a dry day, indicating that no legal outlets are available nearby."
+              "text": "In a dry state (Gujarat, Bihar, Nagaland, Mizoram or Lakshadweep) the bottle points at the nearest wet town instead. The dial only spins when there is nothing at all to point at, meaning no liquor store within 15 km."
             }
           },
           {
             "@type": "Question",
-            "name": "What does the Uber button do?",
+            "name": "What does the cab button do?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "To prevent drinking and driving, the Book Cab button launches the Uber app with your pickup set to your location and destination pre-filled with the nearest liquor store's coordinates."
+              "text": "To prevent drinking and driving, the Cab button launches the Uber app with your pickup set to your location and destination pre-filled with the nearest liquor store's coordinates."
             }
           }
         ]
@@ -127,6 +127,7 @@
       <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="14" height="14" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
       <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
       <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
       <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
     </defs>
   </svg>
@@ -142,85 +143,73 @@
         </div>
       </div>
     </div>
+    <p class="greeting-caption">Sniffing out the nearest theka...</p>
   </div>
 
   <!-- Status Bar Spacer (for iOS Notch/Safe Area) -->
   <div class="status-bar-safe-area"></div>
 
   <main id="app">
-    <!-- Screen 1: Welcome & Calibration Prompt -->
+    <!-- Screen 1: Welcome & permission gate -->
     <section id="permission-screen" class="screen active">
-      <div class="glass-container welcome-card">
-        <!-- State 1: Welcome & Initial Prompt -->
-        <div id="welcome-state" class="state-container active">
+      <!-- State 1: Welcome -->
+      <div id="welcome-state" class="state-container gate active">
+        <div class="gate-top">
           <div class="app-icon-container">
             <div class="app-icon-glow"></div>
-            <img src="/logo.png" alt="Theka Finder Logo" class="app-icon-img">
+            <img src="/logo.png" alt="Theka Finder logo" class="app-icon-img">
           </div>
-          
-          <h1>THEKA FINDER</h1>
-          <p class="subtitle">The only compass you'd need for the only place you need to go to. Let's grab you a beer.</p>
-          
-          <div class="requirements-box">
-            <h3>Required Permissions:</h3>
-            <ul>
-              <li>
-                <span class="icon">📍</span>
-                <div>
-                  <strong>Location Services</strong>
-                  <span>Used to locate the nearest liquor store.</span>
-                </div>
-              </li>
-              <li>
-                <span class="icon">🧭</span>
-                <div>
-                  <strong>Motion & Orientation</strong>
-                  <span>Allows the compass dial to rotate as you turn.</span>
-                </div>
-              </li>
-            </ul>
-          </div>
-          
-          <button id="btn-request-access" class="btn-primary">
-            <span>Find Nearest Theka</span>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-            </svg>
-          </button>
-          
-          <button id="btn-mock-mode" class="btn-secondary admin-only">
-            Try Mock Simulator (Desktop)
-          </button>
-          
-          <p class="welcome-report-link-container">
-            <a href="#" id="btn-report-issue-welcome" class="report-issue-trigger report-issue-link">Report an Issue</a>
-          </p>
+          <h1 class="gate-title">Theka <span>Finder</span></h1>
+          <p class="gate-sub">The only compass you need for the only place you need to go. Let's grab you a beer.</p>
         </div>
 
-        <!-- State 2: Permission Denied/Instruction Screen -->
-        <div id="denied-state" class="state-container hidden">
-          <div class="denied-icon-container">
-            <span class="denied-emoji">🔒</span>
+        <div class="gate-mid">
+          <h3 class="gate-label">We'll ask for two permissions</h3>
+          <div class="perm-row">
+            <span class="perm-ico"><svg class="ico" aria-hidden="true"><use href="#i-pin"/></svg></span>
+            <span class="perm-text"><strong>Location</strong><small>Finds the theka nearest to you</small></span>
           </div>
-          <h2>Access Required</h2>
-          <p class="subtitle">To locate the nearest liquor store and align the compass needle, we need location and motion access.</p>
-          
-          <div class="instructions-box">
-            <h3>How to Enable on iOS Safari:</h3>
-            <ol class="ios-instructions">
-              <li>Open iPhone <strong>Settings</strong>.</li>
-              <li>Go to <strong>Privacy & Security</strong> &gt; <strong>Location Services</strong> and ensure it is turned ON.</li>
-              <li>Scroll down, select <strong>Safari Websites</strong>, and choose <strong>While Using the App</strong>.</li>
-              <li>Go back to main Settings, select <strong>Safari</strong>, scroll down to <strong>Motion & Orientation Access</strong> and toggle it ON.</li>
+          <div class="perm-row">
+            <span class="perm-ico"><svg class="ico" aria-hidden="true"><use href="#i-compass"/></svg></span>
+            <span class="perm-text"><strong>Motion &amp; orientation</strong><small>Turns the dial as you turn</small></span>
+          </div>
+        </div>
+
+        <div class="gate-bottom">
+          <button id="btn-request-access" class="btn-cta" type="button">
+            <svg class="ico" aria-hidden="true"><use href="#i-navigation"/></svg>
+            <span>Find nearest theka</span>
+          </button>
+          <button id="btn-mock-mode" class="btn-ghost admin-only" type="button">Try mock simulator (desktop)</button>
+        </div>
+      </div>
+
+      <!-- State 2: Permission denied -->
+      <div id="denied-state" class="state-container gate gate-denied hidden">
+        <div class="gate-top">
+          <div class="denied-badge"><svg class="ico" aria-hidden="true"><use href="#i-lock"/></svg></div>
+          <h2 class="gate-title gate-title-sm">No signal, no beer</h2>
+          <p class="gate-sub">To find the nearest theka and point the dial, we need your location and motion sensors.</p>
+        </div>
+
+        <div class="gate-mid">
+          <div class="steps-card">
+            <h3 class="steps-label">Enable on iPhone</h3>
+            <ol class="steps-list">
+              <li>Open <strong>Settings</strong>.</li>
+              <li><strong>Privacy &amp; Security</strong> → <strong>Location Services</strong> → On.</li>
+              <li><strong>Safari Websites</strong> → <strong>While Using the App</strong>.</li>
+              <li><strong>Settings</strong> → <strong>Safari</strong> → <strong>Motion &amp; Orientation Access</strong> → On.</li>
             </ol>
           </div>
-          
-          <button id="btn-retry-permissions" class="btn-primary">
-            <span>Enable Permissions</span>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
-            </svg>
+        </div>
+
+        <div class="gate-bottom">
+          <button id="btn-retry-permissions" class="btn-cta" type="button">
+            <svg class="ico" aria-hidden="true"><use href="#i-refresh"/></svg>
+            <span>Try again</span>
           </button>
+          <button id="btn-report-issue-welcome" class="btn-text" type="button">Report an issue</button>
         </div>
       </div>
     </section>
@@ -345,6 +334,21 @@
                 <span id="oasis-meta">Nearest wet town</span>
               </span>
             </div>
+          </div>
+
+          <!-- View: arrived -->
+          <div class="view view-arrived">
+            <h2 class="sheet-title">Cheers, you made it.</h2>
+            <p id="arrived-sub" class="sheet-sub">You're at the theka</p>
+            <div id="support-card" class="support-card">
+              <h3>Enjoying Theka Finder?</h3>
+              <p>Free, ad-free and made in Sonipat. A beer keeps the compass spinning.</p>
+              <button id="btn-arrived-beer" class="btn-cta" type="button">
+                <svg class="ico" aria-hidden="true"><use href="#i-beer"/></svg>
+                <span>Buy me a beer</span>
+              </button>
+            </div>
+            <button id="btn-arrived-later" class="btn-text" type="button">Maybe later</button>
           </div>
 
           <!-- Primary action -->
@@ -557,191 +561,142 @@
   <!-- Full-Screen Confetti Canvas -->
   <canvas id="confetti-canvas"></canvas>
 
-  <!-- Buy Me a Beer Modal Overlay -->
-  <div id="beer-modal" class="modal-overlay hidden">
-    <div class="glass-container modal-content">
-      <button id="btn-close-beer-modal" class="btn-close-modal">&times;</button>
-      <div class="beer-modal-header">
-        <span class="beer-modal-emoji">🍺</span>
-        <h3>Buy me a Beer!</h3>
-        <p class="subtitle">If this compass helped you find a cold beverage, consider supporting Soubhagya!</p>
+  <!-- Buy me a beer -->
+  <div id="beer-modal" class="sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="beer-title">
+    <div class="picker-sheet">
+      <span class="sheet-grip sheet-grip-static"></span>
+      <button id="btn-close-beer-modal" class="sheet-close" type="button" aria-label="Close"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
+      <h3 id="beer-title" class="picker-title">Buy me a beer</h3>
+      <p class="picker-sub">If this compass found you a cold one, say thanks.</p>
+
+      <div class="segmented" role="tablist">
+        <button id="tab-india" class="seg active" type="button" role="tab" aria-selected="true">India</button>
+        <button id="tab-intl" class="seg" type="button" role="tab" aria-selected="false">International</button>
       </div>
 
-      <!-- Tab Selectors -->
-      <div class="payment-tabs">
-        <button id="tab-india" class="tab-btn active">🇮🇳 India</button>
-        <button id="tab-intl" class="tab-btn">🌐 International (Ko-fi)</button>
-      </div>
-      
-      <!-- India Payment Panel -->
+      <!-- India: UPI -->
       <div id="panel-india" class="payment-panel active">
-        <div class="beer-payment-box">
-          <div class="upi-option">
-            <span class="payment-label">UPI ID:</span>
-            <div class="upi-id-row">
-              <code id="upi-address">9058309001@superyes</code>
-              <button id="btn-copy-upi" class="btn-copy">Copy</button>
-            </div>
-          </div>
-          
-          <div class="qr-code-placeholder">
-            <div class="qr-frame">
-              <div class="qr-square qr-tl"></div>
-              <div class="qr-square qr-tr"></div>
-              <div class="qr-square qr-bl"></div>
-              <div class="qr-dots-bg">
-                <svg viewBox="0 0 100 100" width="100%" height="100%" fill="#000000" opacity="0.8">
-                  <rect x="15" y="15" width="20" height="20" fill="none" stroke="currentColor" stroke-width="4"/>
-                  <rect x="21" y="21" width="8" height="8"/>
-                  <rect x="65" y="15" width="20" height="20" fill="none" stroke="currentColor" stroke-width="4"/>
-                  <rect x="71" y="21" width="8" height="8"/>
-                  <rect x="15" y="65" width="20" height="20" fill="none" stroke="currentColor" stroke-width="4"/>
-                  <rect x="21" y="71" width="8" height="8"/>
-                  <rect x="45" y="45" width="10" height="10"/>
-                  <rect x="40" y="25" width="5" height="15"/>
-                  <rect x="55" y="20" width="5" height="5"/>
-                  <rect x="20" y="45" width="15" height="5"/>
-                  <rect x="45" y="65" width="10" height="5"/>
-                  <rect x="65" y="45" width="15" height="10"/>
-                  <rect x="65" y="65" width="5" height="15"/>
-                  <rect x="80" y="80" width="5" height="5"/>
-                </svg>
-              </div>
-            </div>
-            <p class="qr-instructions">Scan to pay with any UPI App</p>
-          </div>
+        <div id="upi-amounts" class="amount-row" role="group" aria-label="Amount">
+          <button class="amount-btn" type="button" data-amount="50">₹50</button>
+          <button class="amount-btn active" type="button" data-amount="100">₹100</button>
+          <button class="amount-btn" type="button" data-amount="200">₹200</button>
+          <button class="amount-btn" type="button" data-amount="">Other</button>
         </div>
-        
-        <button id="btn-beer-success" class="btn-primary">
-          <span>I've Donated! 🍺</span>
+
+        <div class="upi-card">
+          <div class="upi-head">
+            <div class="upi-id">
+              <span class="upi-id-label">UPI ID</span>
+              <code id="upi-address">9058309001@superyes</code>
+            </div>
+            <button id="btn-copy-upi" class="btn-copy" type="button"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg><span id="copy-label">Copy</span></button>
+          </div>
+          <a id="upi-qr-link" class="upi-qr" href="#" aria-label="Pay with a UPI app"><span id="upi-qr" aria-hidden="true"></span></a>
+          <p id="upi-caption" class="upi-caption">Scan to pay ₹100 with any UPI app</p>
+        </div>
+
+        <button id="btn-beer-success" class="btn-cta" type="button">
+          <svg class="ico" aria-hidden="true"><use href="#i-heart"/></svg>
+          <span>I've donated</span>
         </button>
       </div>
 
-      <!-- International Payment Panel -->
+      <!-- International: Ko-fi -->
       <div id="panel-intl" class="payment-panel">
-        <div class="intl-donate-grid">
-          <a href="https://ko-fi.com/soubhagya" target="_blank" class="intl-card" data-amount="5">
-            <span class="intl-emoji">🍺</span>
-            <span class="intl-amt">$5</span>
-            <span class="intl-desc">Pint of Beer</span>
-          </a>
-          <a href="https://ko-fi.com/soubhagya" target="_blank" class="intl-card" data-amount="10">
-            <span class="intl-emoji">🍻</span>
-            <span class="intl-amt">$10</span>
-            <span class="intl-desc">Six-Pack</span>
-          </a>
-          <a href="https://ko-fi.com/soubhagya" target="_blank" class="intl-card custom" data-amount="custom">
-            <span class="intl-emoji">💸</span>
-            <span class="intl-amt">Custom</span>
-            <span class="intl-desc">Support Dev</span>
-          </a>
+        <div class="kofi-card">
+          <span class="kofi-ico"><svg class="ico" aria-hidden="true"><use href="#i-heart"/></svg></span>
+          <h4>Support on Ko-fi</h4>
+          <p>You choose the amount on Ko-fi. Cards, Apple Pay, Google Pay and PayPal all work.</p>
         </div>
-        <p class="intl-helper-text">Links redirect to my Ko-fi page (supports Credit Cards, Apple Pay, Google Pay, PayPal)</p>
+        <a id="btn-open-kofi" class="btn-cta" href="https://ko-fi.com/soubhagya" target="_blank" rel="noopener">
+          <svg class="ico" aria-hidden="true"><use href="#i-heart"/></svg>
+          <span>Open Ko-fi</span>
+        </a>
+        <p class="fine-print">Opens ko-fi.com in your browser</p>
       </div>
     </div>
   </div>
 
-  <!-- FAQ Modal Overlay -->
-  <div id="faq-modal" class="modal-overlay hidden">
-    <div class="glass-container modal-content faq-modal-content">
-      <button id="btn-close-faq-modal" class="btn-close-modal">&times;</button>
-      <div class="faq-modal-header">
-        <span class="faq-modal-emoji">ℹ️</span>
-        <h3>Theka Finder FAQ</h3>
-        <p class="subtitle">Answering life's most pressing questions. Dialect tuned to local frequencies. 🍻</p>
+  <!-- Guide (FAQ) -->
+  <div id="faq-modal" class="sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="guide-title">
+    <div class="picker-sheet">
+      <span class="sheet-grip sheet-grip-static"></span>
+      <button id="btn-close-faq-modal" class="sheet-close" type="button" aria-label="Close"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
+      <h3 id="guide-title" class="picker-title">Guide</h3>
+      <p class="picker-sub">Answering life's most pressing questions.</p>
+
+      <div class="faq-list">
+        <details class="faq-item" open>
+          <summary>What is a "theka"?</summary>
+          <p>Listen up, rookie. A <strong>Theka</strong> (pronounced <em>thay-kaa</em>) is a government-licensed retail shop in India where spirits are sold. Forget cozy aisles and wine-tasting notes. In a real theka, speed is everything. You slide your money through a tiny metal grille, scream your order, get a bottle wrapped in a black polythene bag, and make way for the next guy. Simple, efficient, beautiful.</p>
+        </details>
+        <details class="faq-item">
+          <summary>What does the compass do?</summary>
+          <p>It is a literal <strong>Daaru Direction System (DDS)</strong>. Instead of typing "liquor shop near me" on maps and scrolling through outdated listings, this compass points a giant beer bottle straight at the nearest theka. Spin around and the bottle tracks in real time. Just follow the bottle!</p>
+        </details>
+        <details class="faq-item">
+          <summary>What are "steps to beer"?</summary>
+          <p>Distance in meters is fine, but how many physical steps stand between you and your cold beverage? We calculate this using an average human stride (~0.76 meters). Think of it as your cardio motivation index.</p>
+        </details>
+        <details class="faq-item">
+          <summary>What's the cab button for?</summary>
+          <p>Drinking and driving is an absolute <strong>NO-GO</strong>. Absolutely no <em>car-o-bar</em> (tailgate drinking) if you're behind the wheel. If the nearest theka is too far to walk, hit <strong>Cab</strong> to open Uber with your pickup set to where you are and the theka pre-filled as the destination. Arrive like a VIP, return safely.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Why is the compass spinning?</summary>
+          <p>Ah, you've hit a <strong>Dry Zone</strong>. Gujarat, Bihar, Nagaland, Mizoram and Lakshadweep have no legal thekas, so there the bottle points at the nearest wet town (a "border oasis") instead. If the dial itself spins in grief, there is simply nothing to point at: no shop within 15 km. Put the glass down and hydrate, boss.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Why report open or closed?</summary>
+          <p>In India, theka timings are unpredictable. They might shut for a local election, a festival, or because the owner wanted to go home early. Opening hours come live from Google, but when enough people say the opposite (five or more reports in 12 hours, and most of them disagree), their word wins. Help the gang out and cast your vote!</p>
+        </details>
+        <details class="faq-item">
+          <summary>What does SOS do?</summary>
+          <p>The <strong>Emergency Beer SOS</strong>. If you are stranded or desperately need your friends to bring backup, hitting SOS opens WhatsApp with a prefilled, witty message containing your exact GPS coordinates and a search link. Help is on the way!</p>
+        </details>
       </div>
 
-      <div class="faq-content-scroll">
-        <div class="faq-item">
-          <h4>🤔 What is a "Theka"?</h4>
-          <p>
-            Listen up, rookie. A <strong>Theka</strong> (pronounced <em>thay-kaa</em>) is a government-licensed retail shop in India where spirits are sold. Forget cozy aisles and wine-tasting notes. In a real theka, speed is everything. You slide your money through a tiny metal grille, scream your order, get a bottle wrapped in a black polythene bag, and make way for the next guy. Simple, efficient, beautiful.
-          </p>
-        </div>
-
-        <div class="faq-item">
-          <h4>🧭 What does the compass do?</h4>
-          <p>
-            It is a literal <strong>Daaru Direction System (DDS)</strong>. Instead of typing "liquor shop near me" on maps and scrolling through outdated listings, this compass points a giant beer bottle straight at the nearest checked theka. Spin around—the needle tracks in real-time. Just follow the bottle!
-          </p>
-        </div>
-
-        <div class="faq-item">
-          <h4>🏃 What is "Steps to Beer"?</h4>
-          <p>
-            Distance in meters is fine, but how many physical steps stand between you and your cold beverage? We calculate this using an average human stride (~0.76 meters). Think of it as your cardio motivation index.
-          </p>
-        </div>
-
-        <div class="faq-item">
-          <h4>🚖 What's the Uber button for?</h4>
-          <p>
-            Drinking and driving is an absolute <strong>NO-GO</strong>. Absolutely no <em>car-o-bar</em> (tailgate drinking) if you're behind the wheel. If the nearest theka is too far to walk, hit the "Book Cab" button to load Uber with your target theka's coordinates pre-filled. Arrive like a VIP, return safely.
-          </p>
-        </div>
-
-        <div class="faq-item">
-          <h4>❌ Why is the compass spinning like crazy?</h4>
-          <p>
-            Ah, you've hit a <strong>Dry Zone</strong>. If you are in Gujarat, Bihar, Nagaland, Mizoram, or Lakshadweep (or if it's a national Dry Day), legal thekas are non-existent. The compass needle spins indefinitely in grief. Put the glass down and hydrate, boss.
-          </p>
-        </div>
-
-        <div class="faq-item">
-          <h4>👍/👎 Why report Open/Closed?</h4>
-          <p>
-            In India, theka timings are unpredictable. They might shut down for a local election, a festival, or because the owner wanted to go home early. The crowdsourced voting system calculates a real-time consensus so you don't walk all the way just to find a locked shutter. Help the gang out—cast your vote!
-          </p>
-        </div>
-
-        <div class="faq-item">
-          <h4>🚨 What is the SOS button?</h4>
-          <p>
-            The <strong>Emergency Beer SOS</strong>. If you are stranded or desperately need your friends to bring backup, hitting the SOS button opens WhatsApp with a prefilled, witty message containing your exact GPS coordinates and a search link. Help is on the way!
-          </p>
-        </div>
+      <div class="guide-actions">
+        <button id="btn-guide-report" class="btn-ghost-sm" type="button"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg>Report an issue</button>
+        <button id="btn-guide-beer" class="btn-ghost-sm" type="button"><svg class="ico" aria-hidden="true"><use href="#i-beer"/></svg>Buy me a beer</button>
       </div>
     </div>
   </div>
 
-  <!-- Report an Issue Modal Overlay -->
-  <div id="issue-modal" class="modal-overlay hidden">
-    <div class="glass-container modal-content issue-modal-content">
-      <button id="btn-close-issue-modal" class="btn-close-modal">&times;</button>
-      <div class="issue-modal-header">
-        <span class="issue-modal-emoji">🛠️</span>
-        <h3>Report an Issue</h3>
-        <p class="subtitle">Something not working? Let us know and we'll fix it. 🍻</p>
-      </div>
+  <!-- Report an issue -->
+  <div id="issue-modal" class="sheet-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="issue-title">
+    <div class="picker-sheet">
+      <span class="sheet-grip sheet-grip-static"></span>
+      <button id="btn-close-issue-modal" class="sheet-close" type="button" aria-label="Close"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
+      <h3 id="issue-title" class="picker-title">Report an issue</h3>
+      <p class="picker-sub">Something not working? Let me know and I'll fix it.</p>
 
       <form id="issue-form" class="issue-form">
-        <!-- Location details autofilled -->
         <div class="form-group">
-          <label>Detected Location:</label>
-          <div class="location-autofill-box">
-            <span id="issue-detected-location">Resolving location... 🧭</span>
-          </div>
+          <label for="issue-detected-location">Detected location</label>
+          <div class="field field-static"><span id="issue-detected-location">Resolving location...</span></div>
         </div>
 
         <div class="form-group">
-          <label for="issue-type">What is the problem?</label>
-          <select id="issue-type" required>
+          <label for="issue-type">What's the problem?</label>
+          <select id="issue-type" class="field" required>
             <option value="" disabled selected>Select an issue...</option>
-            <option value="Not picking up stores around me">Not picking up stores around me 🌵</option>
-            <option value="Location / Compass not updating">Location / Compass not updating 🧭</option>
-            <option value="Uber integration not working">Uber integration not working 🚖</option>
-            <option value="Incorrect store details or timings">Incorrect store details or timings 📝</option>
-            <option value="Something else is broken">Something else is broken 💥</option>
+            <option value="Not picking up stores around me">Not picking up stores around me</option>
+            <option value="Location / Compass not updating">Location / compass not updating</option>
+            <option value="Uber integration not working">Cab / Uber not working</option>
+            <option value="Incorrect store details or timings">Incorrect store details or timings</option>
+            <option value="Something else is broken">Something else is broken</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label for="issue-description">Details / Description:</label>
-          <textarea id="issue-description" placeholder="Please describe what's happening..." required></textarea>
+          <label for="issue-description">Details</label>
+          <textarea id="issue-description" class="field" placeholder="Describe what's happening..." maxlength="2000" required></textarea>
         </div>
 
-        <button type="submit" id="btn-submit-issue" class="btn-primary btn-submit-issue">
-          <span>Submit Report</span>
+        <button type="submit" id="btn-submit-issue" class="btn-cta">
+          <svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>
+          <span>Submit report</span>
         </button>
       </form>
     </div>

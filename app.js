@@ -7,6 +7,7 @@
 // --- VERCEL WEB ANALYTICS ---
 import { inject } from '@vercel/analytics';
 import { resolveStatus } from './lib/status.js';
+import { buildUpiLink, normalizeAmount } from './lib/upi.js';
 inject();
 
 // --- CONSTANTS & CONFIGURATION ---
@@ -124,6 +125,9 @@ const state = {
   isSearching: false,
   lastSearchAt: 0,
   sheetExpanded: false,
+  arrivedDismissed: false,
+  supportSuppressed: false,
+  upiAmount: 100,
   feedbackStats: null // { openCount, closedCount, totalCount } for the locked store, last 12 h
 };
 
@@ -227,7 +231,18 @@ const elements = {
   oasisName: document.getElementById('oasis-name'),
   oasisMeta: document.getElementById('oasis-meta'),
   detailHours: document.getElementById('detail-hours'),
-  detailHoursSub: document.getElementById('detail-hours-sub')
+  detailHoursSub: document.getElementById('detail-hours-sub'),
+  arrivedSub: document.getElementById('arrived-sub'),
+  btnArrivedBeer: document.getElementById('btn-arrived-beer'),
+  btnArrivedLater: document.getElementById('btn-arrived-later'),
+  btnGuideReport: document.getElementById('btn-guide-report'),
+  btnGuideBeer: document.getElementById('btn-guide-beer'),
+  upiAmounts: document.getElementById('upi-amounts'),
+  upiQr: document.getElementById('upi-qr'),
+  upiQrLink: document.getElementById('upi-qr-link'),
+  upiCaption: document.getElementById('upi-caption'),
+  copyLabel: document.getElementById('copy-label'),
+  btnOpenKofi: document.getElementById('btn-open-kofi')
 };
 
 // --- CONFETTI & SOUND SYSTEMS ---
@@ -376,6 +391,8 @@ function triggerArrivalCelebration() {
   confetti.spawn();
   
   // The dial core and sheet switch to the arrived look on the next render
+  state.arrivedDismissed = false;
+  setSheetExpanded(false);
   elements.thekaStatusText.textContent = 'Arrived';
   updateStatus('Arrived');
 }
@@ -998,6 +1015,7 @@ function setScreenMode({ view, tone, core, spin = false, oasis = false }) {
   d.core = core;
   d.spin = spin ? '1' : '0';
   d.oasis = oasis ? '1' : '0';
+  d.support = state.supportSuppressed ? '0' : '1';
 }
 
 /** "Madhuloka Liquor Boutique" -> "Madhuloka". Keeps the full name when trimming would leave nothing useful. */
@@ -1112,6 +1130,7 @@ function updateCompassDisplay() {
       state.hasArrivedAtCurrentStore = false;
     }
     const arrived = state.hasArrivedAtCurrentStore;
+    if (!arrived) state.arrivedDismissed = false;
 
     // Distance and steps
     if (distance >= 1000) {
@@ -1151,11 +1170,13 @@ function updateCompassDisplay() {
       elements.directionsLabel.textContent = `Directions to ${town}`;
     } else {
       setScreenMode({
-        view: 'target',
+        view: arrived && !state.arrivedDismissed ? 'arrived' : 'target',
         tone: arrived || aligned ? 'green' : 'amber',
         core: arrived ? 'beer' : 'arrow'
       });
       elements.directionsLabel.textContent = 'Directions';
+      const arrivedStatus = getStoreOpeningStatus(store);
+      elements.arrivedSub.textContent = arrivedStatus.class === 'unknown' ? store.name : `${store.name} · ${arrivedStatus.text}`;
     }
 
     // Directions picker: title, sub-line and links
@@ -2207,8 +2228,149 @@ function triggerCalibrationOverlay() {
 
 // --- INITIALIZATION & REGISTER EVENT LISTENERS ---
 
+// --- SUPPORT: beer sheet, UPI QR, Ko-fi ---
+
+const SUPPORT_QUIET_DAYS = 30; // after someone supports, stop asking for a month
+
+function loadSupportState() {
+  try {
+    const at = Number(localStorage.getItem('theka_supported_at'));
+    state.supportSuppressed = !!at && Date.now() - at < SUPPORT_QUIET_DAYS * 86400000;
+  } catch (e) {
+    state.supportSuppressed = false;
+  }
+  if (elements.btnArrivedLater) elements.btnArrivedLater.textContent = state.supportSuppressed ? 'Done' : 'Maybe later';
+}
+
+function markSupported() {
+  try { localStorage.setItem('theka_supported_at', String(Date.now())); } catch (e) { /* private mode */ }
+  loadSupportState();
+}
+
+let qrFactory = null;
+let upiRenderId = 0;
+
+/** Rebuilds the UPI link, its caption and a real, scannable QR for the chosen amount. */
+async function renderUpi() {
+  const renderId = ++upiRenderId;
+  const vpa = elements.upiAddress.textContent.trim();
+  const link = buildUpiLink({ vpa, name: 'Soubhagya', amount: state.upiAmount, note: 'Theka Finder' });
+  elements.upiQrLink.href = link; // tapping the QR on a phone opens the UPI app chooser
+  elements.upiCaption.textContent = state.upiAmount
+    ? `Scan to pay ₹${state.upiAmount} with any UPI app`
+    : 'Scan to pay any amount with any UPI app';
+  try {
+    if (!qrFactory) qrFactory = (await import('qrcode-generator')).default;
+    if (renderId !== upiRenderId) return; // a newer amount was picked while the library loaded
+    const qr = qrFactory(0, 'M');
+    qr.addData(link);
+    qr.make();
+    const n = qr.getModuleCount();
+    let d = '';
+    for (let r = 0; r < n; r++) {
+      for (let c = 0; c < n; c++) {
+        if (qr.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
+      }
+    }
+    elements.upiQr.innerHTML = `<svg viewBox="0 0 ${n} ${n}" shape-rendering="crispEdges"><path d="${d}" fill="#000"/></svg>`;
+  } catch (err) {
+    console.warn('Could not draw the UPI QR:', err);
+    elements.upiQr.textContent = '';
+  }
+}
+
+function openBeerSheet() {
+  if (!elements.beerModal) return;
+  elements.beerModal.classList.remove('hidden');
+  unlockAudio(); // Unlock audio on click gesture
+  renderUpi();
+}
+
+function closeBeerSheet() {
+  if (elements.beerModal) elements.beerModal.classList.add('hidden');
+}
+
+function initDonation() {
+  loadSupportState();
+
+  [elements.btnBuyBeer, elements.btnArrivedBeer].forEach(btn => {
+    if (btn) btn.addEventListener('click', openBeerSheet);
+  });
+  if (elements.btnArrivedLater) {
+    elements.btnArrivedLater.addEventListener('click', () => {
+      state.arrivedDismissed = true;
+      updateCompassDisplay();
+    });
+  }
+  if (!elements.beerModal) return;
+
+  elements.btnCloseBeerModal.addEventListener('click', closeBeerSheet);
+  elements.beerModal.addEventListener('click', (e) => {
+    if (e.target === elements.beerModal) closeBeerSheet();
+  });
+
+  // India / International tabs
+  const tabIndia = document.getElementById('tab-india');
+  const tabIntl = document.getElementById('tab-intl');
+  const panelIndia = document.getElementById('panel-india');
+  const panelIntl = document.getElementById('panel-intl');
+  const showTab = (india) => {
+    tabIndia.classList.toggle('active', india);
+    tabIntl.classList.toggle('active', !india);
+    tabIndia.setAttribute('aria-selected', String(india));
+    tabIntl.setAttribute('aria-selected', String(!india));
+    panelIndia.classList.toggle('active', india);
+    panelIntl.classList.toggle('active', !india);
+  };
+  tabIndia.addEventListener('click', () => showTab(true));
+  tabIntl.addEventListener('click', () => showTab(false));
+
+  // Amount presets (UPI can carry an amount; Ko-fi cannot)
+  elements.upiAmounts.addEventListener('click', (e) => {
+    const btn = e.target.closest('.amount-btn');
+    if (!btn) return;
+    elements.upiAmounts.querySelectorAll('.amount-btn').forEach(b => b.classList.toggle('active', b === btn));
+    state.upiAmount = normalizeAmount(btn.dataset.amount); // "Other" -> null: the payer types it in their app
+    renderUpi();
+  });
+
+  // Copy UPI ID
+  elements.btnCopyUpi.addEventListener('click', () => {
+    const text = elements.upiAddress.textContent.trim();
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        elements.copyLabel.textContent = 'Copied';
+        elements.btnCopyUpi.classList.add('copied');
+        setTimeout(() => {
+          elements.copyLabel.textContent = 'Copy';
+          elements.btnCopyUpi.classList.remove('copied');
+        }, 2000);
+      })
+      .catch(() => showToast(`UPI ID: ${text}`));
+  });
+
+  // "I've donated" (UPI): thank them, then stop asking for a while
+  elements.btnBeerSuccess.addEventListener('click', () => {
+    closeBeerSheet();
+    markSupported();
+    setTimeout(triggerDonationCelebration, 300);
+  });
+
+  // Ko-fi opens in a new tab; celebrate once they are back
+  elements.btnOpenKofi.addEventListener('click', () => {
+    markSupported();
+    closeBeerSheet();
+    setTimeout(triggerDonationCelebration, 1000);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !elements.beerModal.classList.contains('hidden')) closeBeerSheet();
+  });
+}
+
 function init() {
   initSheet();
+  initDonation();
 
   // 1. Request Buttons
   elements.btnRequestAccess.addEventListener('click', requestDeviceAccess);
@@ -2335,22 +2497,6 @@ function init() {
 
   // 6. Buy Me a Beer Modal Handlers
   if (elements.btnBuyBeer && elements.beerModal) {
-    elements.btnBuyBeer.addEventListener('click', () => {
-      elements.beerModal.classList.remove('hidden');
-      unlockAudio(); // Unlock audio on click gesture
-    });
-    
-    elements.btnCloseBeerModal.addEventListener('click', () => {
-      elements.beerModal.classList.add('hidden');
-    });
-    
-    // Close modal when clicking outside content area
-    elements.beerModal.addEventListener('click', (e) => {
-      if (e.target === elements.beerModal) {
-        elements.beerModal.classList.add('hidden');
-      }
-    });
-    
     // FAQ Modal handlers
     if (elements.btnInfoFaq && elements.faqModal) {
       elements.btnInfoFaq.addEventListener('click', () => {
@@ -2395,6 +2541,20 @@ function init() {
         }
       }
     };
+
+    // Guide footer: jump to report / donate
+    if (elements.btnGuideReport) {
+      elements.btnGuideReport.addEventListener('click', () => {
+        elements.faqModal.classList.add('hidden');
+        openIssueModal();
+      });
+    }
+    if (elements.btnGuideBeer) {
+      elements.btnGuideBeer.addEventListener('click', () => {
+        elements.faqModal.classList.add('hidden');
+        openBeerSheet();
+      });
+    }
 
     if (elements.btnReportIssueWelcome) {
       elements.btnReportIssueWelcome.addEventListener('click', openIssueModal);
@@ -2464,78 +2624,8 @@ function init() {
       });
     }
     
-    // Copy UPI ID functionality
-    if (elements.btnCopyUpi && elements.upiAddress) {
-      elements.btnCopyUpi.addEventListener('click', () => {
-        const textToCopy = elements.upiAddress.textContent;
-        navigator.clipboard.writeText(textToCopy)
-          .then(() => {
-            const originalText = elements.btnCopyUpi.textContent;
-            elements.btnCopyUpi.textContent = 'Copied!';
-            elements.btnCopyUpi.style.background = 'rgba(40, 167, 69, 0.2)';
-            elements.btnCopyUpi.style.color = '#28a745';
-            
-            setTimeout(() => {
-              elements.btnCopyUpi.textContent = originalText;
-              elements.btnCopyUpi.style.background = '';
-              elements.btnCopyUpi.style.color = '';
-            }, 2000);
-          })
-          .catch(err => {
-            console.error('Failed to copy UPI address:', err);
-            alert(`UPI Address: ${textToCopy}`);
-          });
-      });
-    }
-    
-    // "I've Donated" success button
-    if (elements.btnBeerSuccess) {
-      elements.btnBeerSuccess.addEventListener('click', () => {
-        elements.beerModal.classList.add('hidden');
-        
-        // Trigger donation celebration (hiss, pop sound, and confetti!)
-        setTimeout(() => {
-          triggerDonationCelebration();
-        }, 300);
-      });
-    }
-
-    // Tab switching inside payment modal
-    const tabIndia = document.getElementById('tab-india');
-    const tabIntl = document.getElementById('tab-intl');
-    const panelIndia = document.getElementById('panel-india');
-    const panelIntl = document.getElementById('panel-intl');
-    
-    if (tabIndia && tabIntl && panelIndia && panelIntl) {
-      tabIndia.addEventListener('click', () => {
-        tabIndia.classList.add('active');
-        tabIntl.classList.remove('active');
-        panelIndia.classList.add('active');
-        panelIntl.classList.remove('active');
-      });
-      
-      tabIntl.addEventListener('click', () => {
-        tabIntl.classList.add('active');
-        tabIndia.classList.remove('active');
-        panelIntl.classList.add('active');
-        panelIndia.classList.remove('active');
-      });
-    }
-    
-    // Confetti celebration when international cards are clicked
-    const intlCards = document.querySelectorAll('.intl-card');
-    intlCards.forEach(card => {
-      card.addEventListener('click', () => {
-        elements.beerModal.classList.add('hidden');
-        
-        // Wait for redirect to happen then trigger celebration
-        setTimeout(() => {
-          triggerDonationCelebration();
-        }, 1000);
-      });
-    });
   }
-  
+
   // Keep the locked store's live hours fresh (cached 5 min per place, so this is cheap)
   setInterval(() => loadStoreHours(state.nearestStore), 60 * 1000);
 
